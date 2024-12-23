@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relic Upgrade Calculator</title>
+</head>
+<body>
+    <h1>Relic Upgrade Calculator</h1>
+    
+    <label for="current_relic">Enter your current Relic level (0-8):</label>
+    <input type="number" id="current_relic" min="0" max="8">
+    
+    <label for="target_relic">Enter your target Relic level (1-9):</label>
+    <input type="number" id="target_relic" min="1" max="9">
+    
+    <button onclick="calculateUpgrade()">Calculate Upgrade</button>
+    
+    <h2>Required Materials:</h2>
+    <div id="result"></div>
+
+    <script>
+        const Salvage = ["Carbonite circuit board", "Bronzium wiring", "Chromium transistor", "Aurodium heatsink",
+                         "Electrium conductor", "Zinbiddle card", "Impulse detector", "Aeromagnifier", "Gyrda keypad", "Droid brain"];
+        const Signal_Data = ["Fragmented", "Incomplete", "Flawed"];
+
+        const salvage_reqs = [
+            [40, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // Relic 0
+            [30, 40, 0, 0, 0, 0, 0, 0, 0, 0],  // Relic 1
+            [30, 40, 0, 0, 0, 0, 0, 0, 0, 0],  // Relic 2
+            [30, 40, 40, 0, 0, 0, 0, 0, 0, 0],  // Relic 3
+            [30, 40, 30, 20, 0, 0, 0, 0, 0, 0],  // Relic 4
+            [20, 30, 30, 20, 20, 0, 0, 0, 0, 0],  // Relic 5
+            [20, 30, 20, 20, 20, 10, 0, 0, 0, 0],  // Relic 6
+            [0, 0, 20, 20, 20, 20, 20, 20, 0, 0],  // Relic 7
+            [0, 0, 20, 20, 20, 20, 20, 20, 20, 20],  // Relic 8
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  // Relic 9
+        ];
+
+        const signalData_reqs = [
+            [0, 0, 0],  // Relic 0
+            [15, 0, 0],  // Relic 1
+            [20, 15, 0],  // Relic 2
+            [20, 25, 0],  // Relic 3
+            [20, 25, 15],  // Relic 4
+            [20, 25, 25],  // Relic 5
+            [20, 25, 35],  // Relic 6
+            [20, 25, 45],  // Relic 7
+            [30, 30, 55],  // Relic 8
+            [0, 0, 0],  // Relic 9
+        ];
+
+        // Calculate the required salvage and signal data for a specific relic level
+        function calculateMats(relic) {
+            if (relic < 0 || relic > 8) {
+                console.error("Invalid relic level. Only numbers between 0 and 8 are allowed.");
+                return null;
+            }
+            let salvage_needed = salvage_reqs[relic];
+            let signalData_needed = signalData_reqs[relic];
+
+            return { salvage_needed, signalData_needed };
+        }
+
+        // Calculate the total materials needed to upgrade from one relic level to another
+        function calculateMatsSum(current_relic, target_relic) {
+            let total_salvage_dif = new Array(Salvage.length).fill(0);
+            let total_signalData_dif = new Array(Signal_Data.length).fill(0);
+
+            for (let relic_level = current_relic; relic_level < target_relic; relic_level++) {
+                let { salvage_needed, signalData_needed } = calculateMats(relic_level);
+
+                if (salvage_needed && signalData_needed) {
+                    total_salvage_dif = total_salvage_dif.map((total, i) => total + salvage_needed[i]);
+                    total_signalData_dif = total_signalData_dif.map((total, i) => total + signalData_needed[i]);
+                }
+            }
+
+            return { total_salvage_dif, total_signalData_dif };
+        }
+
+        // Handle user input and perform calculations
+        function calculateUpgrade() {
+            let current_relic = parseInt(document.getElementById("current_relic").value);
+            let target_relic = parseInt(document.getElementById("target_relic").value);
+
+            // Validate inputs
+            if (isNaN(current_relic) || isNaN(target_relic)) {
+                alert("Please enter valid numbers.");
+                return;
+            }
+
+            if (current_relic < 0 || current_relic > 8 || target_relic < 1 || target_relic > 9) {
+                alert("Please enter valid relic levels between 0-8 for current and 1-9 for target.");
+                return;
+            }
+
+            if (current_relic >= target_relic) {
+                alert("You can't go backwards in relic levels.");
+                return;
+            }
+
+            let { total_salvage_dif, total_signalData_dif } = calculateMatsSum(current_relic, target_relic);
+
+            // Display results
+            let resultDiv = document.getElementById("result");
+            resultDiv.innerHTML = `<h3>To upgrade from Relic ${current_relic} to Relic ${target_relic}, you need:</h3>`;
+
+            resultDiv.innerHTML += `<h4>Salvage:</h4>`;
+            total_salvage_dif.forEach((diff, index) => {
+                resultDiv.innerHTML += `${Salvage[index]}: ${diff} pieces<br>`;
+            });
+
+            resultDiv.innerHTML += `<h4>Signal Data:</h4>`;
+            total_signalData_dif.forEach((diff, index) => {
+                resultDiv.innerHTML += `${Signal_Data[index]}: ${diff} pieces<br>`;
+            });
+        }
+    </script>
+</body>
+</html>
