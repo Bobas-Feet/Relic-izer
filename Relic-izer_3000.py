@@ -50,17 +50,24 @@ root.title("Relic-izer 3000")
 
 calculation_history = []
 
+current_frame = tk.Frame(root, highlightthickness=2)
+target_frame = tk.Frame(root, highlightthickness=2)
+name_frame = tk.Frame(root)
+
 tk.Label(root, text="Current Relic Level (0–8):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-current_entry = tk.Entry(root, width=10)
-current_entry.grid(row=0, column=1, padx=5, pady=5)
+current_entry = tk.Entry(current_frame, width=10)
+current_entry.pack()
+current_frame.grid(row=0, column=1, padx=5, pady=5)
 
 tk.Label(root, text="Target Relic Level (1–9):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-target_entry = tk.Entry(root, width=10)
-target_entry.grid(row=1, column=1, padx=5, pady=5)
+target_entry = tk.Entry(target_frame, width=10)
+target_entry.pack()
+target_frame.grid(row=1, column=1, padx=5, pady=5)
 
 tk.Label(root, text="Character Name (optional):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-name_entry = tk.Entry(root, width=20)
-name_entry.grid(row=2, column=1, padx=5, pady=5)
+name_entry = tk.Entry(name_frame, width=20)
+name_entry.pack()
+name_frame.grid(row=2, column=1, padx=5, pady=5)
 
 text_output = tk.Text(root, width=80, height=20, wrap="word")
 text_output.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
@@ -78,6 +85,11 @@ def print_output(text, replace_top=False):
         text_output.see(tk.END)  # scroll to bottom if needed
 
 
+def reset_field_styles():
+    current_frame.config(highlightbackground="gray", highlightcolor="gray")
+    target_frame.config(highlightbackground="gray", highlightcolor="gray")
+
+
 def clear_all():
 
     confirm = messagebox.askyesno("Confirm", "All of them?")
@@ -89,6 +101,7 @@ def clear_all():
         calculation_history.clear()
         highlight_entry(current_entry, True)
         highlight_entry(target_entry, True)
+        reset_field_styles()
 
 
 def highlight_entry(entry_widget, valid):
@@ -98,33 +111,48 @@ def highlight_entry(entry_widget, valid):
         entry_widget.config(highlightbackground="red", highlightcolor="red", highlightthickness=2)
 
 
+def validate_inputs():
+    reset_field_styles()
+    valid = True
+
+    if not current_entry.get().strip():
+        current_frame.config(highlightbackground="red", highlightcolor="red")
+        valid = False
+    if not target_entry.get().strip():
+        target_frame.config(highlightbackground="red", highlightcolor="red")
+        valid = False
+
+    return valid
+
+
+def highlight_frame(frame, is_error):
+    frame.config(highlightbackground="red" if is_error else "white", highlightcolor="red" if is_error else "white")
+
+
 def add_calculation():
+
+    text_output.delete(1.0, tk.END)
+
+    if not validate_inputs():
+        print_output("Something's missing.")
+        return
 
     try:
         current = int(current_entry.get())
         target = int(target_entry.get())
 
-        # Assume inputs are valid, mark them so unless proven otherwise
-        current_valid = 0 <= current <= 8
-        target_valid = 1 <= target <= 9
-        direction_valid = current < target
-
-        # Apply highlights
-        highlight_entry(current_entry, current_valid and direction_valid)
-        highlight_entry(target_entry, target_valid and direction_valid)
-
-        # Validation messages (replacing top line)
-        if not current_valid:
-            print_output("Current level must be between 0 and 8.", replace_top=True)
+        if not (0 <= current <= 8):
+            current_frame.config(highlightbackground="red", highlightcolor="red")
+            print_output("Current level must be between 0 and 8.")
             return
-        if not target_valid:
-            print_output("Target level must be between 1 and 9.", replace_top=True)
+        if not (1 <= target <= 9):
+            target_frame.config(highlightbackground="red", highlightcolor="red")
+            print_output("Target level must be between 1 and 9.")
             return
-        if not direction_valid:
-            print_output("This is a Relic **UPGRADING** tool. You can't go down, left or right, only up.", replace_top=True)
+        if current >= target:
+            print_output("This is a Relic **UPGRADING** tool. You can't go down.")
             return
 
-        # If valid: process
         name = name_entry.get().strip()
         calculation_history.append((name, current, target))
         name_entry.delete(0, tk.END)
@@ -144,12 +172,14 @@ def summarize_all():
 
     text_output.delete(1.0, tk.END)
 
-    if not calculation_history:
+    if not validate_inputs():
+        print_output("Something's Missing.")
+        return
 
-        if current_entry.get().strip() or target_entry.get().strip():
-            print_output("Something is missing, isn't it? Try again.")
-        else:
-            print_output("Before you calculate, you'll need to enter at least one upgrade, genius.")
+    text_output.delete(1.0, tk.END)
+
+    if not calculation_history:
+        print_output("Before you calculate, you'll need to enter at least one upgrade, genius.")
         return
 
     total_salvage = [0] * len(Salvage)
@@ -160,34 +190,31 @@ def summarize_all():
         label = f"{name}" if name else f"Upgrade #{i} (Relic {current} → Relic {target})"
         output_lines.append(f"==={label}===")
         salvage_diff, signal_diff = calculate_mats_sum(current, target)
+
         output_lines.append(f"{i}. Relic {current} → Relic {target}")
-        output_lines.append(f"Salvage")
-        # Show materials for this calculation
-        for name, amount in zip(Salvage, salvage_diff):
+        output_lines.append("Salvage")
+        for s_name, amount in zip(Salvage, salvage_diff):
             if amount > 0:
-                output_lines.append(f"   - {name}: {amount}")
+                output_lines.append(f"   - {s_name}: {amount}")
 
-        output_lines.append(f"Signal Data")
-        for name, amount in zip(Signal_Data, signal_diff):
+        output_lines.append("Signal Data")
+        for sig_name, amount in zip(Signal_Data, signal_diff):
             if amount > 0:
-                output_lines.append(f"   - {name}: {amount}")
+                output_lines.append(f"   - {sig_name}: {amount}")
+        output_lines.append("")
 
-        output_lines.append("")  # blank line between entries
-
-        # Add to grand total
         total_salvage = [x + y for x, y in zip(total_salvage, salvage_diff)]
         total_signal = [x + y for x, y in zip(total_signal, signal_diff)]
 
-    # Add grand totals
     output_lines.append("                               === GRAND TOTAL ===")
-    output_lines.append(f"Salvage")
-    for name, amount in zip(Salvage, total_salvage):
+    output_lines.append("Salvage")
+    for s_name, amount in zip(Salvage, total_salvage):
         if amount > 0:
-            output_lines.append(f"   - {name}s: {amount} pieces")
-    output_lines.append(f"Signal Data")
-    for name, amount in zip(Signal_Data, total_signal):
+            output_lines.append(f"   - {s_name}s: {amount} pieces")
+    output_lines.append("Signal Data")
+    for sig_name, amount in zip(Signal_Data, total_signal):
         if amount > 0:
-            output_lines.append(f"   - {name}: {amount} mats")
+            output_lines.append(f"   - {sig_name}: {amount}")
     output_lines.append("")
 
     print_output("\n".join(output_lines))
