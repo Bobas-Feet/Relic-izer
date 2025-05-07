@@ -71,25 +71,46 @@ class SearchableCombobox(tk.Frame):
         self.listbox_visible = False
         self.current_selection = None
 
+        # Focus management: entry and listbox
         self.entry.bind("<FocusOut>", self.on_focus_out)
         self.listbox.bind("<FocusOut>", self.on_focus_out)
 
+        # Global click-outside check
         self.master.bind_all("<Button-1>", self.check_click_outside)
+
+        # Flag for tracking scrollbar interactions
+        self.scrollbar_interaction = False
+        self.scrollbar.bind("<ButtonPress-1>", self.on_scrollbar_interaction)
+        self.scrollbar.bind("<ButtonRelease-1>", self.on_scrollbar_interaction)
+
+        # Window move handling for dropdown
         self.root = self.winfo_toplevel()
         self.root.bind("<Configure>", self.on_window_move)
 
+    def on_scrollbar_interaction(self, event):
+        """Flag when the user interacts with the scrollbar."""
+        self.scrollbar_interaction = True
+        # Reset the interaction flag shortly after the interaction
+        self.after(100, self.reset_scrollbar_interaction)
+
+    def reset_scrollbar_interaction(self):
+        """Reset the scrollbar interaction flag after the interaction is done."""
+        self.scrollbar_interaction = False
+
     def on_keyrelease(self, event=None):
+        """Handle key release for filtering values."""
         query = self.var.get().lower()
         self.filtered_values = [v for v in self.values if query in v.lower()] if query else list(self.values)
         self.update_dropdown()
 
     def show_dropdown(self, event=None):
+        """Show the dropdown if it is not visible and the input is not the same as the current selection."""
         if not self.listbox_visible and self.var.get() != self.current_selection:
             self.update_dropdown()
         self.position_dropdown()
 
     def position_dropdown(self):
-        # Position the dropdown relative to the entry widget
+        """Position the dropdown relative to the entry widget."""
         x = self.entry.winfo_rootx()
         y = self.entry.winfo_rooty() + self.entry.winfo_height()
         width = self.entry.winfo_width()
@@ -98,6 +119,7 @@ class SearchableCombobox(tk.Frame):
         self.listbox_visible = True
 
     def update_dropdown(self):
+        """Update the listbox with the filtered values and position the dropdown."""
         self.listbox.delete(0, tk.END)
         for item in self.filtered_values:
             self.listbox.insert(tk.END, item)
@@ -110,17 +132,18 @@ class SearchableCombobox(tk.Frame):
             self.hide_dropdown()
 
     def hide_dropdown(self):
+        """Hide the dropdown."""
         self.dropdown_frame.withdraw()
         self.listbox_visible = False
 
     def on_hover(self, event):
-        # Highlight the item under the mouse
+        """Highlight the item under the mouse pointer."""
         index = self.listbox.nearest(event.y)
         self.listbox.selection_clear(0, tk.END)
         self.listbox.selection_set(index)
 
     def on_select(self, event=None):
-        # Handle selection from the listbox
+        """Handle selection from the listbox."""
         selection = self.listbox.curselection()
         if selection:
             value = self.listbox.get(selection[0])
@@ -129,22 +152,26 @@ class SearchableCombobox(tk.Frame):
             self.hide_dropdown()  # Close dropdown after selection
 
     def on_focus_out(self, event=None):
-        # Delay closing to ensure selection behavior is handled
-        self.after(100, self._check_focus_loss)
+        """Handle focus out events to close the dropdown if necessary."""
+        if self.scrollbar_interaction:  # Only close if not interacting with the scrollbar
+            self.after(100, self._check_focus_loss)
 
     def _check_focus_loss(self):
-        # Close the dropdown if focus is lost and no item is selected
+        """Check if focus is lost and close the dropdown if necessary."""
         if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
             self.hide_dropdown()
 
     def check_click_outside(self, event):
-        # Close dropdown if clicked outside the entry or dropdown
+        """Close dropdown if clicked outside the entry or dropdown."""
+        if self.scrollbar_interaction:  # Prevent closing if interacting with scrollbar
+            return
+
         widget = event.widget
         if widget not in (self.entry, self.listbox) and not self._is_child_of(widget, self.dropdown_frame):
             self.hide_dropdown()
 
     def _is_child_of(self, widget, parent):
-        # Helper function to check widget hierarchy
+        """Helper function to check widget hierarchy."""
         while widget:
             if widget == parent:
                 return True
@@ -152,15 +179,17 @@ class SearchableCombobox(tk.Frame):
         return False
 
     def on_window_move(self, event):
+        """Reposition the dropdown when the window is moved."""
         if self.listbox_visible:
             self.after(10, self.position_dropdown)
 
     def get(self):
+        """Get the current value of the combobox."""
         return self.var.get()
 
     def delete(self, start, end):
+        """Delete text from the entry."""
         self.entry.delete(start, end)
-
 
 def calculate_mats(relic):
 
@@ -282,7 +311,6 @@ def add_calculation():
 
 
 def summarize_all():
-
     text_output.delete(1.0, tk.END)
 
     if not validate_inputs():
@@ -298,35 +326,48 @@ def summarize_all():
     output_lines = ["                          === INDIVIDUAL SUMMARY ===\n"]
 
     for i, (name, current, target) in enumerate(calculation_history, 1):
-        label = f"{name}" if name else f"Upgrade #{i} (Relic {current} → Relic {target})"
-        output_lines.append(f"==={label}===")
+        label = f"{name}" if name else f"Upgrade #{i}"
+        output_lines.append(f"=== {label} ===")
         salvage_diff, signal_diff = calculate_mats_sum(current, target)
-        output_lines.append(f"{i}. Relic {current} → Relic {target}")
-        output_lines.append("Salvage")
-        for s_name, amount in zip(Salvage, salvage_diff):
-            if amount > 0:
-                output_lines.append(f"   - {s_name}: {amount}")
+        output_lines.append(f" - Relic {current} → Relic {target} - ")
 
-        output_lines.append("Signal Data")
-        for sig_name, amount in zip(Signal_Data, signal_diff):
-            if amount > 0:
-                output_lines.append(f"   - {sig_name}: {amount}")
+        # Only show "Salvage" section if there's data
+        if any(amount > 0 for amount in salvage_diff):
+            output_lines.append("Salvage")
+            for s_name, amount in zip(Salvage, salvage_diff):
+                if amount > 0:
+                    output_lines.append(f"   - {s_name}: {amount}")
+
+        # Only show "Signal Data" section if there's data
+        if any(amount > 0 for amount in signal_diff):
+            output_lines.append("Signal Data")
+            for sig_name, amount in zip(Signal_Data, signal_diff):
+                if amount > 0:
+                    output_lines.append(f"   - {sig_name}: {amount}")
+
         output_lines.append("")
 
         total_salvage = [x + y for x, y in zip(total_salvage, salvage_diff)]
         total_signal = [x + y for x, y in zip(total_signal, signal_diff)]
 
-    output_lines.append("                               === GRAND TOTAL ===")
-    output_lines.append("Salvage")
+    # Only append GRAND TOTAL if there is more than one line in the queue
+    if len(calculation_history) > 1:
+        output_lines.append("                               === GRAND TOTAL ===\n")
 
-    for s_name, amount in zip(Salvage, total_salvage):
-        if amount > 0:
-            output_lines.append(f"   - {s_name}s: {amount} pieces")
-    output_lines.append("Signal Data")
-    for sig_name, amount in zip(Signal_Data, total_signal):
-        if amount > 0:
-            output_lines.append(f"   - {sig_name}: {amount}")
-    output_lines.append("")
+        # Only show total salvage if there is any salvage data
+        if any(amount > 0 for amount in total_salvage):
+            output_lines.append("Salvage")
+            for s_name, amount in zip(Salvage, total_salvage):
+                if amount > 0:
+                    output_lines.append(f"   - {s_name}s: {amount} pieces")
+
+        # Only show total signal data if there is any signal data
+        if any(amount > 0 for amount in total_signal):
+            output_lines.append("Signal Data")
+            for sig_name, amount in zip(Signal_Data, total_signal):
+                if amount > 0:
+                    output_lines.append(f"   - {sig_name}: {amount}")
+        output_lines.append("")
 
     print_output("\n".join(output_lines))
     text_output.yview_moveto(0.0)
