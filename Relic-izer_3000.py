@@ -1,13 +1,19 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox
 
 
-Salvage = [
-    "Carbonite circuit board", "Bronzium wiring", "Chromium transistor", "Aurodium heatsink",
-    "Electrium conductor", "Zinbiddle card", "Impulse detector", "Aeromagnifier",
-    "Gyrda keypad", "Droid brain"
-]
+Salvage = ["Carbonite circuit board", "Bronzium wiring", "Chromium transistor", "Aurodium heatsink",
+           "Electrium conductor", "Zinbiddle card", "Impulse detector", "Aeromagnifier",
+           "Gyrda keypad", "Droid brain"]
+
 Signal_Data = ["Fragmented [light blue]", "Incomplete [green]", "Flawed [dark blue]"]
+
+character_names = [
+    "Ahsoka Tano", "Darth Vader", "Luke Skywalker", "Rey", "Kylo Ren",
+    "Yoda", "Palpatine", "Han Solo", "Chewbacca", "Leia Organa",
+    # Add the rest of your character names here...
+]
+
 
 salvage_reqs = [
     [40, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # R0
@@ -29,48 +35,151 @@ signalData_reqs = [
 ]
 
 
+class SearchableCombobox(tk.Frame):
+    def __init__(self, master, values, max_height=6, **kwargs):
+        super().__init__(master)
+        self.values = values
+        self.filtered_values = list(values)
+        self.var = tk.StringVar()
+
+        # Entry widget
+        self.entry = ttk.Entry(self, textvariable=self.var, width=kwargs.get("width", 30))
+        self.entry.pack(fill=tk.BOTH, expand=True)
+        self.entry.bind("<KeyRelease>", self.on_keyrelease)
+        self.entry.bind("<Button-1>", self.show_dropdown)
+
+        # Dropdown frame
+        self.dropdown_frame = tk.Toplevel(self)
+        self.dropdown_frame.withdraw()
+        self.dropdown_frame.overrideredirect(True)
+        self.dropdown_frame.attributes("-topmost", True)
+
+        # Scrollable listbox
+        self.listbox = tk.Listbox(self.dropdown_frame, activestyle="dotbox")
+        self.scrollbar = tk.Scrollbar(self.dropdown_frame, orient="vertical", command=self.listbox.yview)
+        self.listbox.config(yscrollcommand=self.scrollbar.set)
+
+        self.listbox.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
+
+        # Bind listbox behavior
+        self.listbox.bind("<ButtonRelease-1>", self.on_select)
+        self.listbox.bind("<Motion>", self.on_hover)
+        self.listbox.bind("<Leave>", lambda e: self.listbox.selection_clear(0, tk.END))
+
+        self.max_height = max_height
+        self.listbox_visible = False
+        self.current_selection = None
+
+        self.entry.bind("<FocusOut>", self.on_focus_out)
+        self.listbox.bind("<FocusOut>", self.on_focus_out)
+
+        self.master.bind_all("<Button-1>", self.check_click_outside)
+        self.root = self.winfo_toplevel()
+        self.root.bind("<Configure>", self.on_window_move)
+
+    def on_keyrelease(self, event=None):
+        query = self.var.get().lower()
+        self.filtered_values = [v for v in self.values if query in v.lower()] if query else list(self.values)
+        self.update_dropdown()
+
+    def show_dropdown(self, event=None):
+        if not self.listbox_visible and self.var.get() != self.current_selection:
+            self.update_dropdown()
+        self.position_dropdown()
+
+    def position_dropdown(self):
+        # Position the dropdown relative to the entry widget
+        x = self.entry.winfo_rootx()
+        y = self.entry.winfo_rooty() + self.entry.winfo_height()
+        width = self.entry.winfo_width()
+        self.dropdown_frame.geometry(f"{width}x{self.listbox.winfo_reqheight()}+{x}+{y}")
+        self.dropdown_frame.deiconify()
+        self.listbox_visible = True
+
+    def update_dropdown(self):
+        self.listbox.delete(0, tk.END)
+        for item in self.filtered_values:
+            self.listbox.insert(tk.END, item)
+
+        height = min(len(self.filtered_values), self.max_height)
+        self.listbox.config(height=height)
+        if self.filtered_values:
+            self.position_dropdown()
+        else:
+            self.hide_dropdown()
+
+    def hide_dropdown(self):
+        self.dropdown_frame.withdraw()
+        self.listbox_visible = False
+
+    def on_hover(self, event):
+        # Highlight the item under the mouse
+        index = self.listbox.nearest(event.y)
+        self.listbox.selection_clear(0, tk.END)
+        self.listbox.selection_set(index)
+
+    def on_select(self, event=None):
+        # Handle selection from the listbox
+        selection = self.listbox.curselection()
+        if selection:
+            value = self.listbox.get(selection[0])
+            self.var.set(value)
+            self.current_selection = value
+            self.hide_dropdown()  # Close dropdown after selection
+
+    def on_focus_out(self, event=None):
+        # Delay closing to ensure selection behavior is handled
+        self.after(100, self._check_focus_loss)
+
+    def _check_focus_loss(self):
+        # Close the dropdown if focus is lost and no item is selected
+        if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
+            self.hide_dropdown()
+
+    def check_click_outside(self, event):
+        # Close dropdown if clicked outside the entry or dropdown
+        widget = event.widget
+        if widget not in (self.entry, self.listbox) and not self._is_child_of(widget, self.dropdown_frame):
+            self.hide_dropdown()
+
+    def _is_child_of(self, widget, parent):
+        # Helper function to check widget hierarchy
+        while widget:
+            if widget == parent:
+                return True
+            widget = widget.master
+        return False
+
+    def on_window_move(self, event):
+        if self.listbox_visible:
+            self.after(10, self.position_dropdown)
+
+    def get(self):
+        return self.var.get()
+
+    def delete(self, start, end):
+        self.entry.delete(start, end)
+
+
 def calculate_mats(relic):
+
     if relic < 0 or relic > 8:
         return None, None
+
     return salvage_reqs[relic], signalData_reqs[relic]
 
 
 def calculate_mats_sum(current_relic, target_relic):
+
     total_salvage_dif = [0] * len(Salvage)
     total_signalData_dif = [0] * len(Signal_Data)
     for relic_level in range(current_relic, target_relic):
         salvage_needed, signalData_needed = calculate_mats(relic_level)
         total_salvage_dif = [x + y for x, y in zip(total_salvage_dif, salvage_needed)]
         total_signalData_dif = [x + y for x, y in zip(total_signalData_dif, signalData_needed)]
+
     return total_salvage_dif, total_signalData_dif
-
-
-root = tk.Tk()
-root.title("Relic-izer 3000")
-
-calculation_history = []
-
-current_frame = tk.Frame(root, highlightthickness=2)
-target_frame = tk.Frame(root, highlightthickness=2)
-name_frame = tk.Frame(root)
-
-tk.Label(root, text="Current Relic Level (0–8):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-current_entry = tk.Entry(current_frame, width=10)
-current_entry.pack()
-current_frame.grid(row=0, column=1, padx=5, pady=5)
-
-tk.Label(root, text="Target Relic Level (1–9):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-target_entry = tk.Entry(target_frame, width=10)
-target_entry.pack()
-target_frame.grid(row=1, column=1, padx=5, pady=5)
-
-tk.Label(root, text="Character Name (optional):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-name_entry = tk.Entry(name_frame, width=20)
-name_entry.pack()
-name_frame.grid(row=2, column=1, padx=5, pady=5)
-
-text_output = tk.Text(root, width=80, height=20, wrap="word")
-text_output.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
 
 
 def print_output(text, replace_top=False):
@@ -86,6 +195,7 @@ def print_output(text, replace_top=False):
 
 
 def reset_field_styles():
+
     current_frame.config(highlightbackground="gray", highlightcolor="gray")
     target_frame.config(highlightbackground="gray", highlightcolor="gray")
 
@@ -105,6 +215,7 @@ def clear_all():
 
 
 def highlight_entry(entry_widget, valid):
+
     if valid:
         entry_widget.config(highlightbackground="green", highlightcolor="green", highlightthickness=1)
     else:
@@ -112,9 +223,9 @@ def highlight_entry(entry_widget, valid):
 
 
 def validate_inputs():
+
     reset_field_styles()
     valid = True
-
     if not current_entry.get().strip():
         current_frame.config(highlightbackground="red", highlightcolor="red")
         valid = False
@@ -134,7 +245,7 @@ def add_calculation():
     text_output.delete(1.0, tk.END)
 
     if not validate_inputs():
-        print_output("Something's missing.")
+        print_output("Something's missing. Either it's Current Relic, Target Relic, or both")
         return
 
     try:
@@ -150,6 +261,8 @@ def add_calculation():
             print_output("Target level must be between 1 and 9.")
             return
         if current >= target:
+            current_frame.config(highlightbackground="red", highlightcolor="red")
+            target_frame.config(highlightbackground="red", highlightcolor="red")
             print_output("This is a Relic **UPGRADING** tool. You can't go down.")
             return
 
@@ -173,13 +286,11 @@ def summarize_all():
     text_output.delete(1.0, tk.END)
 
     if not validate_inputs():
-        print_output("Something's Missing.")
+        print_output("Something's missing. Either it's Current Relic, Target Relic, or both.")
         return
 
-    text_output.delete(1.0, tk.END)
-
     if not calculation_history:
-        print_output("Before you calculate, you'll need to enter at least one upgrade, genius.")
+        print_output("Before calculation, you'll need to add to the queue at least one line, genius.")
         return
 
     total_salvage = [0] * len(Salvage)
@@ -190,7 +301,6 @@ def summarize_all():
         label = f"{name}" if name else f"Upgrade #{i} (Relic {current} → Relic {target})"
         output_lines.append(f"==={label}===")
         salvage_diff, signal_diff = calculate_mats_sum(current, target)
-
         output_lines.append(f"{i}. Relic {current} → Relic {target}")
         output_lines.append("Salvage")
         for s_name, amount in zip(Salvage, salvage_diff):
@@ -208,6 +318,7 @@ def summarize_all():
 
     output_lines.append("                               === GRAND TOTAL ===")
     output_lines.append("Salvage")
+
     for s_name, amount in zip(Salvage, total_salvage):
         if amount > 0:
             output_lines.append(f"   - {s_name}s: {amount} pieces")
@@ -218,11 +329,44 @@ def summarize_all():
     output_lines.append("")
 
     print_output("\n".join(output_lines))
+    text_output.yview_moveto(0.0)
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    root.title("Relic-izer 3000")
+# root.geometry("300x200")
+
+    calculation_history = []
+
+    current_frame = tk.Frame(root, highlightthickness=2)
+    target_frame = tk.Frame(root, highlightthickness=2)
+    name_frame = tk.Frame(root, highlightthickness=2)
+
+    tk.Label(root, text="Current Relic Level (0–8):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+    current_entry = tk.Spinbox(current_frame, from_=0, to=8, width=5)
+    current_entry.pack()
+    current_entry.delete(0, tk.END)  # Make blank on startup
+    current_frame.grid(row=0, column=1, padx=5, pady=5)
+
+    tk.Label(root, text="Target Relic Level (1–9):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+    target_entry = tk.Spinbox(target_frame, from_=1, to=9, width=5)
+    target_entry.pack()
+    target_entry.delete(0, tk.END)  # Make blank on startup
+    target_frame.grid(row=1, column=1, padx=5, pady=5)
+
+    tk.Label(root, text="Character Name (optional):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+    name_entry = SearchableCombobox(name_frame, values=character_names, width=30)
+    name_entry.pack()
+    name_frame.grid(row=2, column=1, padx=5, pady=5)
+
+    text_output = tk.Text(root, width=80, height=20, wrap="word")
+    text_output.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
 
 
 # Buttons
-tk.Button(root, text="Add to Queue", command=add_calculation).grid(row=0, column=2, padx=5, pady=5)
-tk.Button(root, text="Calculate", command=summarize_all).grid(row=1, column=2, padx=5, pady=5)
-tk.Button(root, text="Wipe them out", command=clear_all).grid(row=2, column=2, padx=5, pady=5)
+    tk.Button(root, text="Add to Queue", command=add_calculation).grid(row=0, column=2, padx=5, pady=5)
+    tk.Button(root, text="Calculate", command=summarize_all).grid(row=1, column=2, padx=5, pady=5)
+    tk.Button(root, text="Wipe them out", command=clear_all).grid(row=2, column=2, padx=5, pady=5)
 
-root.mainloop()
+    root.mainloop()
