@@ -48,6 +48,12 @@ class SearchableCombobox(tk.Frame):
         self.entry.bind("<KeyRelease>", self.on_keyrelease)
         self.entry.bind("<Button-1>", self.show_dropdown)
 
+        # Keyboard navigation
+        self.entry.bind("<Down>", self.on_key_down)
+        self.entry.bind("<Up>", self.on_key_up)
+        self.entry.bind("<Return>", self.on_return)
+        self.entry.bind("<Escape>", self.on_escape)
+
         # Dropdown frame
         self.dropdown_frame = tk.Toplevel(self)
         self.dropdown_frame.withdraw()
@@ -55,10 +61,9 @@ class SearchableCombobox(tk.Frame):
         self.dropdown_frame.attributes("-topmost", True)
 
         # Scrollable listbox
-        self.listbox = tk.Listbox(self.dropdown_frame, activestyle="dotbox")
-        self.scrollbar = tk.Scrollbar(self.dropdown_frame, orient="vertical", command=self.listbox.yview)
+        self.listbox = tk.Listbox(self.dropdown_frame, activestyle="dotbox", exportselection=False)
+        self.scrollbar = tk.Scrollbar(self.dropdown_frame, orient="vertical", command=self.listbox.yview, takefocus=False)
         self.listbox.config(yscrollcommand=self.scrollbar.set)
-
         self.listbox.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
 
@@ -71,46 +76,76 @@ class SearchableCombobox(tk.Frame):
         self.listbox_visible = False
         self.current_selection = None
 
-        # Focus management: entry and listbox
+        # Focus management
         self.entry.bind("<FocusOut>", self.on_focus_out)
         self.listbox.bind("<FocusOut>", self.on_focus_out)
 
         # Global click-outside check
         self.master.bind_all("<Button-1>", self.check_click_outside)
 
-        # Flag for tracking scrollbar interactions
+        # Scrollbar interaction flag
         self.scrollbar_interaction = False
         self.scrollbar.bind("<ButtonPress-1>", self.on_scrollbar_interaction)
         self.scrollbar.bind("<ButtonRelease-1>", self.on_scrollbar_interaction)
 
-        # Window move handling for dropdown
+        # Window movement reposition
         self.root = self.winfo_toplevel()
         self.root.bind("<Configure>", self.on_window_move)
 
-    def on_scrollbar_interaction(self, event):
-        """Flag when the user interacts with the scrollbar."""
-        self.scrollbar_interaction = True
-        # Reset the interaction flag shortly after the interaction
-        self.after(100, self.reset_scrollbar_interaction)
+    def on_key_down(self, event=None):
+        if not self.listbox_visible:
+            self.update_dropdown()
+            return "break"
 
-    def reset_scrollbar_interaction(self):
-        """Reset the scrollbar interaction flag after the interaction is done."""
-        self.scrollbar_interaction = False
+        current_index = self.listbox.index(tk.ACTIVE)
+        next_index = current_index + 1 if current_index is not None else 0
+        if next_index < self.listbox.size():
+            self.listbox.selection_clear(0, tk.END)
+            self.listbox.selection_set(next_index)
+            self.listbox.activate(next_index)
+            self.listbox.see(next_index)
+        return "break"
+
+    def on_key_up(self, event=None):
+        if not self.listbox_visible:
+            return "break"
+
+        current_index = self.listbox.index(tk.ACTIVE)
+        prev_index = current_index - 1 if current_index is not None else self.listbox.size() - 1
+        if prev_index >= 0:
+            self.listbox.selection_clear(0, tk.END)
+            self.listbox.selection_set(prev_index)
+            self.listbox.activate(prev_index)
+            self.listbox.see(prev_index)
+        return "break"
+
+    def on_return(self, event=None):
+        index = self.listbox.index(tk.ACTIVE)
+        if index is not None and 0 <= index < self.listbox.size():
+            value = self.listbox.get(index)
+            self.var.set(value)
+            self.current_selection = value
+        self.hide_dropdown()
+        return "break"
+
+    def on_escape(self, event):
+        self.hide_dropdown()
+        return "break"
 
     def on_keyrelease(self, event=None):
-        """Handle key release for filtering values."""
+        if event.keysym in ("Up", "Down", "Return", "Escape"):
+            return
         query = self.var.get().lower()
         self.filtered_values = [v for v in self.values if query in v.lower()] if query else list(self.values)
         self.update_dropdown()
 
     def show_dropdown(self, event=None):
-        """Show the dropdown if it is not visible and the input is not the same as the current selection."""
         if not self.listbox_visible and self.var.get() != self.current_selection:
             self.update_dropdown()
         self.position_dropdown()
+        self.entry.focus_set()  # Keep focus on the entry
 
     def position_dropdown(self):
-        """Position the dropdown relative to the entry widget."""
         x = self.entry.winfo_rootx()
         y = self.entry.winfo_rooty() + self.entry.winfo_height()
         width = self.entry.winfo_width()
@@ -119,7 +154,6 @@ class SearchableCombobox(tk.Frame):
         self.listbox_visible = True
 
     def update_dropdown(self):
-        """Update the listbox with the filtered values and position the dropdown."""
         self.listbox.delete(0, tk.END)
         for item in self.filtered_values:
             self.listbox.insert(tk.END, item)
@@ -132,64 +166,63 @@ class SearchableCombobox(tk.Frame):
             self.hide_dropdown()
 
     def hide_dropdown(self):
-        """Hide the dropdown."""
         self.dropdown_frame.withdraw()
         self.listbox_visible = False
 
     def on_hover(self, event):
-        """Highlight the item under the mouse pointer."""
         index = self.listbox.nearest(event.y)
         self.listbox.selection_clear(0, tk.END)
         self.listbox.selection_set(index)
+        self.listbox.activate(index)
 
     def on_select(self, event=None):
-        """Handle selection from the listbox."""
         selection = self.listbox.curselection()
         if selection:
             value = self.listbox.get(selection[0])
             self.var.set(value)
             self.current_selection = value
-            self.hide_dropdown()  # Close dropdown after selection
+        self.hide_dropdown()
 
     def on_focus_out(self, event=None):
-        """Handle focus out events to close the dropdown if necessary."""
-        if self.scrollbar_interaction:  # Only close if not interacting with the scrollbar
+        if self.scrollbar_interaction:
             self.after(100, self._check_focus_loss)
 
     def _check_focus_loss(self):
-        """Check if focus is lost and close the dropdown if necessary."""
         if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
             self.hide_dropdown()
 
     def check_click_outside(self, event):
-        """Close dropdown if clicked outside the entry or dropdown."""
-        if self.scrollbar_interaction:  # Prevent closing if interacting with scrollbar
+        if self.scrollbar_interaction:
             return
-
         widget = event.widget
         if widget not in (self.entry, self.listbox) and not self._is_child_of(widget, self.dropdown_frame):
             self.hide_dropdown()
 
     def _is_child_of(self, widget, parent):
-        """Helper function to check widget hierarchy."""
         while widget:
             if widget == parent:
                 return True
             widget = widget.master
         return False
 
+    def on_scrollbar_interaction(self, event):
+        self.scrollbar_interaction = True
+        self.after(100, self.reset_scrollbar_interaction)
+        self.entry.focus_set()  # Keep keyboard focus where it belongs
+
+    def reset_scrollbar_interaction(self):
+        self.scrollbar_interaction = False
+
     def on_window_move(self, event):
-        """Reposition the dropdown when the window is moved."""
         if self.listbox_visible:
             self.after(10, self.position_dropdown)
 
     def get(self):
-        """Get the current value of the combobox."""
         return self.var.get()
 
     def delete(self, start, end):
-        """Delete text from the entry."""
         self.entry.delete(start, end)
+
 
 def calculate_mats(relic):
 
@@ -376,7 +409,6 @@ def summarize_all():
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("Relic-izer 3000")
-# root.geometry("300x200")
 
     calculation_history = []
 
@@ -403,7 +435,6 @@ if __name__ == "__main__":
 
     text_output = tk.Text(root, width=80, height=20, wrap="word")
     text_output.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
-
 
 # Buttons
     tk.Button(root, text="Add to Queue", command=add_calculation).grid(row=0, column=2, padx=5, pady=5)
