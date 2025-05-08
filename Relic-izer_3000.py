@@ -92,6 +92,24 @@ class SearchableCombobox(tk.Frame):
         self.root = self.winfo_toplevel()
         self.root.bind("<Configure>", self.on_window_move)
 
+        self.root.bind("<Unmap>", self.on_root_unmap)
+        self.root.bind("<FocusOut>", self.on_root_focus_out)
+
+    def on_root_unmap(self, event=None):
+        # Only hide dropdown if the root window was minimized
+        if str(self.root.state()) == "iconic":
+            self.hide_dropdown()
+
+    def on_root_focus_out(self, event=None):
+        # Delay check to allow focus routing to settle
+        self.after(10, self._check_app_focus)
+
+    def _check_app_focus(self):
+        # Hide dropdown if the app lost focus (i.e., no toplevels have focus)
+        focused_widget = self.root.focus_displayof()
+        if focused_widget is None or not str(focused_widget).startswith(str(self.root)):
+            self.hide_dropdown()
+
     def on_key_down(self, event=None):
         if not self.listbox_visible:
             self.update_dropdown()
@@ -185,7 +203,7 @@ class SearchableCombobox(tk.Frame):
 
     def on_focus_out(self, event=None):
         if self.scrollbar_interaction:
-            self.after(100, self._check_focus_loss)
+            self.after(10, self._check_focus_loss)
 
     def _check_focus_loss(self):
         if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
@@ -215,7 +233,7 @@ class SearchableCombobox(tk.Frame):
 
     def on_window_move(self, event):
         if self.listbox_visible:
-            self.after(10, self.position_dropdown)
+            self.after(5, self.position_dropdown)
 
     def get(self):
         return self.var.get()
