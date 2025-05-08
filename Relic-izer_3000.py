@@ -2,31 +2,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from lists_database import *
 
-# Salvage = ["Carbonite circuit board", "Bronzium wiring", "Chromium transistor", "Aurodium heatsink",
-#            "Electrium conductor", "Zinbiddle card", "Impulse detector", "Aeromagnifier",
-#            "Gyrda keypad", "Droid brain"]
-#
-# Signal_Data = ["Fragmented [light blue]", "Incomplete [green]", "Flawed [dark blue]"]
-#
-# salvage_reqs = [
-#     [40, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # R0
-#     [30, 40, 0, 0, 0, 0, 0, 0, 0, 0],  # R1
-#     [30, 40, 0, 0, 0, 0, 0, 0, 0, 0],  # R2
-#     [30, 40, 40, 0, 0, 0, 0, 0, 0, 0],  # R3
-#     [30, 40, 30, 20, 0, 0, 0, 0, 0, 0],  # R4
-#     [20, 30, 30, 20, 20, 0, 0, 0, 0, 0],  # R5
-#     [20, 30, 20, 20, 20, 10, 0, 0, 0, 0],  # R6
-#     [0, 0, 20, 20, 20, 20, 20, 20, 0, 0],  # R7
-#     [0, 0, 20, 20, 20, 20, 20, 20, 20, 20],  # R8
-#     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # R9
-# ]
-#
-# signalData_reqs = [
-#     [0, 0, 0], [15, 0, 0], [20, 15, 0], [20, 25, 0],
-#     [20, 25, 15], [20, 25, 25], [20, 25, 35], [20, 25, 45],
-#     [30, 30, 55], [0, 0, 0]
-# ]
-
 
 class SearchableCombobox(tk.Frame):
     def __init__(self, master, values, max_height=6, **kwargs):
@@ -292,14 +267,32 @@ def highlight_entry(entry_widget, valid):
 
 
 def validate_inputs():
-
-    reset_field_styles()
     valid = True
-    if not current_entry.get().strip():
-        current_frame.config(highlightbackground="red", highlightcolor="red")
+
+    try:
+        current = int(current_entry.get())
+    except ValueError:
+        current = None
+    try:
+        target = int(target_entry.get())
+    except ValueError:
+        target = None
+
+    # Reset to default border
+    current_frame.config(highlightbackground="SystemButtonFace")
+    target_frame.config(highlightbackground="SystemButtonFace")
+
+    if current is None or not (0 <= current <= 8):
+        current_frame.config(highlightbackground="red")
         valid = False
-    if not target_entry.get().strip():
-        target_frame.config(highlightbackground="red", highlightcolor="red")
+
+    if target is None or not (1 <= target <= 9):
+        target_frame.config(highlightbackground="red")
+        valid = False
+
+    if current is not None and target is not None and current >= target:
+        current_frame.config(highlightbackground="red")
+        target_frame.config(highlightbackground="red")
         valid = False
 
     return valid
