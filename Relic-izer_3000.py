@@ -1,31 +1,31 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from lists_database import character_names
+from lists_database import *
 
-Salvage = ["Carbonite circuit board", "Bronzium wiring", "Chromium transistor", "Aurodium heatsink",
-           "Electrium conductor", "Zinbiddle card", "Impulse detector", "Aeromagnifier",
-           "Gyrda keypad", "Droid brain"]
-
-Signal_Data = ["Fragmented [light blue]", "Incomplete [green]", "Flawed [dark blue]"]
-
-salvage_reqs = [
-    [40, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # R0
-    [30, 40, 0, 0, 0, 0, 0, 0, 0, 0],  # R1
-    [30, 40, 0, 0, 0, 0, 0, 0, 0, 0],  # R2
-    [30, 40, 40, 0, 0, 0, 0, 0, 0, 0],  # R3
-    [30, 40, 30, 20, 0, 0, 0, 0, 0, 0],  # R4
-    [20, 30, 30, 20, 20, 0, 0, 0, 0, 0],  # R5
-    [20, 30, 20, 20, 20, 10, 0, 0, 0, 0],  # R6
-    [0, 0, 20, 20, 20, 20, 20, 20, 0, 0],  # R7
-    [0, 0, 20, 20, 20, 20, 20, 20, 20, 20],  # R8
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # R9
-]
-
-signalData_reqs = [
-    [0, 0, 0], [15, 0, 0], [20, 15, 0], [20, 25, 0],
-    [20, 25, 15], [20, 25, 25], [20, 25, 35], [20, 25, 45],
-    [30, 30, 55], [0, 0, 0]
-]
+# Salvage = ["Carbonite circuit board", "Bronzium wiring", "Chromium transistor", "Aurodium heatsink",
+#            "Electrium conductor", "Zinbiddle card", "Impulse detector", "Aeromagnifier",
+#            "Gyrda keypad", "Droid brain"]
+#
+# Signal_Data = ["Fragmented [light blue]", "Incomplete [green]", "Flawed [dark blue]"]
+#
+# salvage_reqs = [
+#     [40, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # R0
+#     [30, 40, 0, 0, 0, 0, 0, 0, 0, 0],  # R1
+#     [30, 40, 0, 0, 0, 0, 0, 0, 0, 0],  # R2
+#     [30, 40, 40, 0, 0, 0, 0, 0, 0, 0],  # R3
+#     [30, 40, 30, 20, 0, 0, 0, 0, 0, 0],  # R4
+#     [20, 30, 30, 20, 20, 0, 0, 0, 0, 0],  # R5
+#     [20, 30, 20, 20, 20, 10, 0, 0, 0, 0],  # R6
+#     [0, 0, 20, 20, 20, 20, 20, 20, 0, 0],  # R7
+#     [0, 0, 20, 20, 20, 20, 20, 20, 20, 20],  # R8
+#     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # R9
+# ]
+#
+# signalData_reqs = [
+#     [0, 0, 0], [15, 0, 0], [20, 15, 0], [20, 25, 0],
+#     [20, 25, 15], [20, 25, 25], [20, 25, 35], [20, 25, 45],
+#     [30, 30, 55], [0, 0, 0]
+# ]
 
 
 class SearchableCombobox(tk.Frame):
@@ -84,6 +84,23 @@ class SearchableCombobox(tk.Frame):
         # Window movement reposition
         self.root = self.winfo_toplevel()
         self.root.bind("<Configure>", self.on_window_move)
+        self.root.bind("<Unmap>", self.on_root_unmap)
+        self.root.bind("<FocusOut>", self.on_root_focus_out)
+
+    def on_root_unmap(self, event=None):
+        # Only hide dropdown if the root window was minimized
+        if str(self.root.state()) == "iconic":
+            self.hide_dropdown()
+
+    def on_root_focus_out(self, event=None):
+        # Delay check to allow focus routing to settle
+        self.after(2, self._check_app_focus)
+
+    def _check_app_focus(self):
+        # Hide dropdown if the app lost focus (i.e., no toplevels have focus)
+        focused_widget = self.root.focus_displayof()
+        if focused_widget is None or not str(focused_widget).startswith(str(self.root)):
+            self.hide_dropdown()
 
     def on_key_down(self, event=None):
         if not self.listbox_visible:
@@ -205,7 +222,7 @@ class SearchableCombobox(tk.Frame):
 
     def on_window_move(self, event):
         if self.listbox_visible:
-            self.after(10, self.position_dropdown)
+            self.after(1, self.position_dropdown)
 
     def get(self):
         return self.var.get()
