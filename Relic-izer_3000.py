@@ -8,13 +8,6 @@ Salvage = ["Carbonite circuit board", "Bronzium wiring", "Chromium transistor", 
 
 Signal_Data = ["Fragmented [light blue]", "Incomplete [green]", "Flawed [dark blue]"]
 
-# character_names = [
-#     "Ahsoka Tano", "Darth Vader", "Luke Skywalker", "Rey", "Kylo Ren",
-#     "Yoda", "Palpatine", "Han Solo", "Chewbacca", "Leia Organa",
-#     # Add the rest of your character names here...
-# ]
-character_names
-
 salvage_reqs = [
     [40, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # R0
     [30, 40, 0, 0, 0, 0, 0, 0, 0, 0],  # R1
