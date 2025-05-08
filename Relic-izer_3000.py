@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-
+from lists_database import character_names
 
 Salvage = ["Carbonite circuit board", "Bronzium wiring", "Chromium transistor", "Aurodium heatsink",
            "Electrium conductor", "Zinbiddle card", "Impulse detector", "Aeromagnifier",
@@ -8,12 +8,12 @@ Salvage = ["Carbonite circuit board", "Bronzium wiring", "Chromium transistor", 
 
 Signal_Data = ["Fragmented [light blue]", "Incomplete [green]", "Flawed [dark blue]"]
 
-character_names = [
-    "Ahsoka Tano", "Darth Vader", "Luke Skywalker", "Rey", "Kylo Ren",
-    "Yoda", "Palpatine", "Han Solo", "Chewbacca", "Leia Organa",
-    # Add the rest of your character names here...
-]
-
+# character_names = [
+#     "Ahsoka Tano", "Darth Vader", "Luke Skywalker", "Rey", "Kylo Ren",
+#     "Yoda", "Palpatine", "Han Solo", "Chewbacca", "Leia Organa",
+#     # Add the rest of your character names here...
+# ]
+character_names
 
 salvage_reqs = [
     [40, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # R0
