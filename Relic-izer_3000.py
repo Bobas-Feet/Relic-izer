@@ -92,29 +92,10 @@ class SearchableCombobox(tk.Frame):
         self.root = self.winfo_toplevel()
         self.root.bind("<Configure>", self.on_window_move)
 
-        self.root.bind("<Unmap>", self.on_root_unmap)
-        self.root.bind("<FocusOut>", self.on_root_focus_out)
-
-    def on_root_unmap(self, event=None):
-        # Only hide dropdown if the root window was minimized
-        if str(self.root.state()) == "iconic":
-            self.hide_dropdown()
-
-    def on_root_focus_out(self, event=None):
-        # Delay check to allow focus routing to settle
-        self.after(10, self._check_app_focus)
-
-    def _check_app_focus(self):
-        # Hide dropdown if the app lost focus (i.e., no toplevels have focus)
-        focused_widget = self.root.focus_displayof()
-        if focused_widget is None or not str(focused_widget).startswith(str(self.root)):
-            self.hide_dropdown()
-
     def on_key_down(self, event=None):
         if not self.listbox_visible:
             self.update_dropdown()
             return "break"
-
         current_index = self.listbox.index(tk.ACTIVE)
         next_index = current_index + 1 if current_index is not None else 0
         if next_index < self.listbox.size():
@@ -127,7 +108,6 @@ class SearchableCombobox(tk.Frame):
     def on_key_up(self, event=None):
         if not self.listbox_visible:
             return "break"
-
         current_index = self.listbox.index(tk.ACTIVE)
         prev_index = current_index - 1 if current_index is not None else self.listbox.size() - 1
         if prev_index >= 0:
@@ -161,7 +141,7 @@ class SearchableCombobox(tk.Frame):
         if not self.listbox_visible and self.var.get() != self.current_selection:
             self.update_dropdown()
         self.position_dropdown()
-        self.entry.focus_set()  # Keep focus on the entry
+        self.entry.focus_set()
 
     def position_dropdown(self):
         x = self.entry.winfo_rootx()
@@ -175,7 +155,6 @@ class SearchableCombobox(tk.Frame):
         self.listbox.delete(0, tk.END)
         for item in self.filtered_values:
             self.listbox.insert(tk.END, item)
-
         height = min(len(self.filtered_values), self.max_height)
         self.listbox.config(height=height)
         if self.filtered_values:
@@ -203,7 +182,7 @@ class SearchableCombobox(tk.Frame):
 
     def on_focus_out(self, event=None):
         if self.scrollbar_interaction:
-            self.after(10, self._check_focus_loss)
+            self.after(100, self._check_focus_loss)
 
     def _check_focus_loss(self):
         if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
@@ -226,14 +205,14 @@ class SearchableCombobox(tk.Frame):
     def on_scrollbar_interaction(self, event):
         self.scrollbar_interaction = True
         self.after(100, self.reset_scrollbar_interaction)
-        self.entry.focus_set()  # Keep keyboard focus where it belongs
+        self.entry.focus_set()
 
     def reset_scrollbar_interaction(self):
         self.scrollbar_interaction = False
 
     def on_window_move(self, event):
         if self.listbox_visible:
-            self.after(5, self.position_dropdown)
+            self.after(10, self.position_dropdown)
 
     def get(self):
         return self.var.get()
@@ -425,6 +404,15 @@ def summarize_all():
 
 
 if __name__ == "__main__":
+    def block_non_numeric(event):
+        if not (event.char.isdigit() or event.keysym in ("BackSpace", "Left", "Right", "Tab", "Delete")):
+            return "break"
+
+    def sanitize_spinbox_input(spinbox):
+        value = spinbox.get()
+        if not value.isdigit():
+            spinbox.delete(0, tk.END)
+
     root = tk.Tk()
     root.title("Relic-izer 3000")
 
@@ -434,18 +422,25 @@ if __name__ == "__main__":
     target_frame = tk.Frame(root, highlightthickness=2)
     name_frame = tk.Frame(root, highlightthickness=2)
 
+    # Current spinbox
     tk.Label(root, text="Current Relic Level (0–8):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
     current_entry = tk.Spinbox(current_frame, from_=0, to=8, width=5)
     current_entry.pack()
     current_entry.delete(0, tk.END)  # Make blank on startup
+    current_entry.bind("<KeyPress>", block_non_numeric)
+    current_entry.bind("<FocusOut>", lambda e: sanitize_spinbox_input(current_entry))
     current_frame.grid(row=0, column=1, padx=5, pady=5)
 
+    # Target spinbox
     tk.Label(root, text="Target Relic Level (1–9):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
     target_entry = tk.Spinbox(target_frame, from_=1, to=9, width=5)
     target_entry.pack()
     target_entry.delete(0, tk.END)  # Make blank on startup
+    target_entry.bind("<KeyPress>", block_non_numeric)
+    target_entry.bind("<FocusOut>", lambda e: sanitize_spinbox_input(target_entry))
     target_frame.grid(row=1, column=1, padx=5, pady=5)
 
+    # Character name box
     tk.Label(root, text="Character Name (optional):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
     name_entry = SearchableCombobox(name_frame, values=character_names, width=30)
     name_entry.pack()
@@ -454,7 +449,7 @@ if __name__ == "__main__":
     text_output = tk.Text(root, width=80, height=20, wrap="word")
     text_output.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
 
-# Buttons
+    # Buttons
     tk.Button(root, text="Add to Queue", command=add_calculation).grid(row=0, column=2, padx=5, pady=5)
     tk.Button(root, text="Calculate", command=summarize_all).grid(row=1, column=2, padx=5, pady=5)
     tk.Button(root, text="Wipe them out", command=clear_all).grid(row=2, column=2, padx=5, pady=5)
