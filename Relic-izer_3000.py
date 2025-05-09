@@ -1,409 +1,408 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
-from lists_database import *
-
-
-class SearchableCombobox(tk.Frame):
-    def __init__(self, master, values, max_height=6, **kwargs):
-        super().__init__(master)
-        self.values = values
-        self.filtered_values = list(values)
-        self.var = tk.StringVar()
-
-        # Entry widget
-        self.entry = ttk.Entry(self, textvariable=self.var, width=kwargs.get("width", 30))
-        self.entry.pack(fill=tk.BOTH, expand=True)
-        self.entry.bind("<KeyRelease>", self.on_keyrelease)
-        self.entry.bind("<Button-1>", self.show_dropdown)
-
-        # Keyboard navigation
-        self.entry.bind("<Down>", self.on_key_down)
-        self.entry.bind("<Up>", self.on_key_up)
-        self.entry.bind("<Return>", self.on_return)
-        self.entry.bind("<Escape>", self.on_escape)
-
-        # Dropdown frame
-        self.dropdown_frame = tk.Toplevel(self)
-        self.dropdown_frame.withdraw()
-        self.dropdown_frame.overrideredirect(True)
-        self.dropdown_frame.attributes("-topmost", True)
-
-        # Scrollable listbox
-        self.listbox = tk.Listbox(self.dropdown_frame, activestyle="dotbox", exportselection=False)
-        self.scrollbar = tk.Scrollbar(self.dropdown_frame, orient="vertical", command=self.listbox.yview, takefocus=False)
-        self.listbox.config(yscrollcommand=self.scrollbar.set)
-        self.listbox.pack(side="left", fill="both", expand=True)
-        self.scrollbar.pack(side="right", fill="y")
-
-        # Bind listbox behavior
-        self.listbox.bind("<ButtonRelease-1>", self.on_select)
-        self.listbox.bind("<Motion>", self.on_hover)
-        self.listbox.bind("<Leave>", lambda e: self.listbox.selection_clear(0, tk.END))
-
-        self.max_height = max_height
-        self.listbox_visible = False
-        self.current_selection = None
-
-        # Focus management
-        self.entry.bind("<FocusOut>", self.on_focus_out)
-        self.listbox.bind("<FocusOut>", self.on_focus_out)
-
-        # Global click-outside check
-        self.master.bind_all("<Button-1>", self.check_click_outside)
-
-        # Scrollbar interaction flag
-        self.scrollbar_interaction = False
-        self.scrollbar.bind("<ButtonPress-1>", self.on_scrollbar_interaction)
-        self.scrollbar.bind("<ButtonRelease-1>", self.on_scrollbar_interaction)
-
-        # Window movement reposition
-        self.root = self.winfo_toplevel()
-        self.root.bind("<Configure>", self.on_window_move)
-        self.root.bind("<Unmap>", self.on_root_unmap)
-        self.root.bind("<FocusOut>", self.on_root_focus_out)
-
-    def on_root_unmap(self, event=None):
-        # Only hide dropdown if the root window was minimized
-        if str(self.root.state()) == "iconic":
-            self.hide_dropdown()
-
-    def on_root_focus_out(self, event=None):
-        # Delay check to allow focus routing to settle
-        self.after(2, self._check_app_focus)
-
-    def _check_app_focus(self):
-        # Hide dropdown if the app lost focus (i.e., no toplevels have focus)
-        focused_widget = self.root.focus_displayof()
-        if focused_widget is None or not str(focused_widget).startswith(str(self.root)):
-            self.hide_dropdown()
-
-    def on_key_down(self, event=None):
-        if not self.listbox_visible:
-            self.update_dropdown()
-            return "break"
-        current_index = self.listbox.index(tk.ACTIVE)
-        next_index = current_index + 1 if current_index is not None else 0
-        if next_index < self.listbox.size():
-            self.listbox.selection_clear(0, tk.END)
-            self.listbox.selection_set(next_index)
-            self.listbox.activate(next_index)
-            self.listbox.see(next_index)
-        return "break"
-
-    def on_key_up(self, event=None):
-        if not self.listbox_visible:
-            return "break"
-        current_index = self.listbox.index(tk.ACTIVE)
-        prev_index = current_index - 1 if current_index is not None else self.listbox.size() - 1
-        if prev_index >= 0:
-            self.listbox.selection_clear(0, tk.END)
-            self.listbox.selection_set(prev_index)
-            self.listbox.activate(prev_index)
-            self.listbox.see(prev_index)
-        return "break"
-
-    def on_return(self, event=None):
-        index = self.listbox.index(tk.ACTIVE)
-        if index is not None and 0 <= index < self.listbox.size():
-            value = self.listbox.get(index)
-            self.var.set(value)
-            self.current_selection = value
-        self.hide_dropdown()
-        return "break"
-
-    def on_escape(self, event):
-        self.hide_dropdown()
-        return "break"
-
-    def on_keyrelease(self, event=None):
-        if event.keysym in ("Up", "Down", "Return", "Escape"):
-            return
-        query = self.var.get().lower()
-        self.filtered_values = [v for v in self.values if query in v.lower()] if query else list(self.values)
-        self.update_dropdown()
-
-    def show_dropdown(self, event=None):
-        if not self.listbox_visible and self.var.get() != self.current_selection:
-            self.update_dropdown()
-        self.position_dropdown()
-        self.entry.focus_set()
-
-    def position_dropdown(self):
-        x = self.entry.winfo_rootx()
-        y = self.entry.winfo_rooty() + self.entry.winfo_height()
-        width = self.entry.winfo_width()
-        self.dropdown_frame.geometry(f"{width}x{self.listbox.winfo_reqheight()}+{x}+{y}")
-        self.dropdown_frame.deiconify()
-        self.listbox_visible = True
-
-    def update_dropdown(self):
-        self.listbox.delete(0, tk.END)
-        for item in self.filtered_values:
-            self.listbox.insert(tk.END, item)
-        height = min(len(self.filtered_values), self.max_height)
-        self.listbox.config(height=height)
-        if self.filtered_values:
-            self.position_dropdown()
-        else:
-            self.hide_dropdown()
-
-    def hide_dropdown(self):
-        self.dropdown_frame.withdraw()
-        self.listbox_visible = False
-
-    def on_hover(self, event):
-        index = self.listbox.nearest(event.y)
-        self.listbox.selection_clear(0, tk.END)
-        self.listbox.selection_set(index)
-        self.listbox.activate(index)
-
-    def on_select(self, event=None):
-        selection = self.listbox.curselection()
-        if selection:
-            value = self.listbox.get(selection[0])
-            self.var.set(value)
-            self.current_selection = value
-        self.hide_dropdown()
-
-    def on_focus_out(self, event=None):
-        if self.scrollbar_interaction:
-            self.after(100, self._check_focus_loss)
-
-    def _check_focus_loss(self):
-        if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
-            self.hide_dropdown()
-
-    def check_click_outside(self, event):
-        if self.scrollbar_interaction:
-            return
-        widget = event.widget
-        if widget not in (self.entry, self.listbox) and not self._is_child_of(widget, self.dropdown_frame):
-            self.hide_dropdown()
-
-    def _is_child_of(self, widget, parent):
-        while widget:
-            if widget == parent:
-                return True
-            widget = widget.master
-        return False
-
-    def on_scrollbar_interaction(self, event):
-        self.scrollbar_interaction = True
-        self.after(100, self.reset_scrollbar_interaction)
-        self.entry.focus_set()
-
-    def reset_scrollbar_interaction(self):
-        self.scrollbar_interaction = False
-
-    def on_window_move(self, event):
-        if self.listbox_visible:
-            self.after(1, self.position_dropdown)
-
-    def get(self):
-        return self.var.get()
-
-    def delete(self, start, end):
-        self.entry.delete(start, end)
-
-
-def calculate_mats(relic):
-
-    if relic < 0 or relic > 8:
-        return None, None
-
-    return salvage_reqs[relic], signalData_reqs[relic]
-
-
-def calculate_mats_sum(current_relic, target_relic):
-
-    total_salvage_dif = [0] * len(Salvage)
-    total_signalData_dif = [0] * len(Signal_Data)
-    for relic_level in range(current_relic, target_relic):
-        salvage_needed, signalData_needed = calculate_mats(relic_level)
-        total_salvage_dif = [x + y for x, y in zip(total_salvage_dif, salvage_needed)]
-        total_signalData_dif = [x + y for x, y in zip(total_signalData_dif, signalData_needed)]
-
-    return total_salvage_dif, total_signalData_dif
-
-
-def print_output(text, replace_top=False):
-
-    if replace_top:
-        # Replace only the top line (like updating a status bar)
-        text_output.delete("1.0", "2.0")
-        text_output.insert("1.0", text + "\n")
-    else:
-        # Standard append-to-bottom behavior
-        text_output.insert(tk.END, text + "\n")
-        text_output.see(tk.END)  # scroll to bottom if needed
-
-
-def reset_field_styles():
-
-    current_frame.config(highlightbackground="gray", highlightcolor="gray")
-    target_frame.config(highlightbackground="gray", highlightcolor="gray")
-
-
-def clear_all():
-
-    confirm = messagebox.askyesno("Confirm", "All of them?")
-    if confirm:
-        current_entry.delete(0, tk.END)
-        target_entry.delete(0, tk.END)
-        name_entry.delete(0, tk.END)
-        text_output.delete(1.0, tk.END)
-        calculation_history.clear()
-        highlight_entry(current_entry, True)
-        highlight_entry(target_entry, True)
-        reset_field_styles()
-
-
-def highlight_entry(entry_widget, valid):
-
-    if valid:
-        entry_widget.config(highlightbackground="green", highlightcolor="green", highlightthickness=1)
-    else:
-        entry_widget.config(highlightbackground="red", highlightcolor="red", highlightthickness=2)
-
-
-def validate_inputs():
-    valid = True
-
-    try:
-        current = int(current_entry.get())
-    except ValueError:
-        current = None
-    try:
-        target = int(target_entry.get())
-    except ValueError:
-        target = None
-
-    # Reset to default border
-    current_frame.config(highlightbackground="SystemButtonFace")
-    target_frame.config(highlightbackground="SystemButtonFace")
-
-    if current is None or not (0 <= current <= 8):
-        current_frame.config(highlightbackground="red")
-        valid = False
-
-    if target is None or not (1 <= target <= 9):
-        target_frame.config(highlightbackground="red")
-        valid = False
-
-    if current is not None and target is not None and current >= target:
-        current_frame.config(highlightbackground="red")
-        target_frame.config(highlightbackground="red")
-        valid = False
-
-    return valid
-
-
-def highlight_frame(frame, is_error):
-    frame.config(highlightbackground="red" if is_error else "white", highlightcolor="red" if is_error else "white")
-
-
-def add_calculation():
-
-    text_output.delete(1.0, tk.END)
-
-    if not validate_inputs():
-        print_output("Something's missing. Either it's Current Relic, Target Relic, or both")
-        return
-
-    try:
-        current = int(current_entry.get())
-        target = int(target_entry.get())
-
-        if not (0 <= current <= 8):
-            current_frame.config(highlightbackground="red", highlightcolor="red")
-            print_output("Current level must be between 0 and 8.")
-            return
-        if not (1 <= target <= 9):
-            target_frame.config(highlightbackground="red", highlightcolor="red")
-            print_output("Target level must be between 1 and 9.")
-            return
-        if current >= target:
-            current_frame.config(highlightbackground="red", highlightcolor="red")
-            target_frame.config(highlightbackground="red", highlightcolor="red")
-            print_output("This is a Relic **UPGRADING** tool. You can't go down.")
-            return
-
-        name = name_entry.get().strip()
-        calculation_history.append((name, current, target))
-        name_entry.delete(0, tk.END)
-
-        if name:
-            print_output(f"Added (Relic {current} → {target}) for {name} to the queue,\nClick 'Calculate' to see totals.")
-        else:
-            print_output(f"Relic {current} → {target} ready, Click 'Calculate' to see totals.", replace_top=True)
-
-    except ValueError:
-        highlight_entry(current_entry, False)
-        highlight_entry(target_entry, False)
-        print_output("Relic levels are numerical, not alphabetical, or whatever that was.", replace_top=True)
-
-
-def summarize_all():
-    text_output.delete(1.0, tk.END)
-
-    if not validate_inputs():
-        print_output("Something's missing. Either it's Current Relic, Target Relic, or both.")
-        return
-
-    if not calculation_history:
-        print_output("Before calculation, you'll need to add to the queue at least one line, genius.")
-        return
-
-    total_salvage = [0] * len(Salvage)
-    total_signal = [0] * len(Signal_Data)
-    output_lines = ["                          === INDIVIDUAL SUMMARY ===\n"]
-
-    for i, (name, current, target) in enumerate(calculation_history, 1):
-        label = f"{name}" if name else f"Upgrade #{i}"
-        output_lines.append(f"=== {label} ===")
-        salvage_diff, signal_diff = calculate_mats_sum(current, target)
-        output_lines.append(f" - Relic {current} → Relic {target} - ")
-
-        # Only show "Salvage" section if there's data
-        if any(amount > 0 for amount in salvage_diff):
-            output_lines.append("Salvage")
-            for s_name, amount in zip(Salvage, salvage_diff):
-                if amount > 0:
-                    output_lines.append(f"   - {s_name}: {amount}")
-
-        # Only show "Signal Data" section if there's data
-        if any(amount > 0 for amount in signal_diff):
-            output_lines.append("Signal Data")
-            for sig_name, amount in zip(Signal_Data, signal_diff):
-                if amount > 0:
-                    output_lines.append(f"   - {sig_name}: {amount}")
-
-        output_lines.append("")
-
-        total_salvage = [x + y for x, y in zip(total_salvage, salvage_diff)]
-        total_signal = [x + y for x, y in zip(total_signal, signal_diff)]
-
-    # Only append GRAND TOTAL if there is more than one line in the queue
-    if len(calculation_history) > 1:
-        output_lines.append("                               === GRAND TOTAL ===\n")
-
-        # Only show total salvage if there is any salvage data
-        if any(amount > 0 for amount in total_salvage):
-            output_lines.append("Salvage")
-            for s_name, amount in zip(Salvage, total_salvage):
-                if amount > 0:
-                    output_lines.append(f"   - {s_name}s: {amount} pieces")
-
-        # Only show total signal data if there is any signal data
-        if any(amount > 0 for amount in total_signal):
-            output_lines.append("Signal Data")
-            for sig_name, amount in zip(Signal_Data, total_signal):
-                if amount > 0:
-                    output_lines.append(f"   - {sig_name}: {amount}")
-        output_lines.append("")
-
-    print_output("\n".join(output_lines))
-    text_output.yview_moveto(0.0)
+from widgets import SearchableCombobox
+from logic import *
+
+
+# class SearchableCombobox(tk.Frame):
+#     def __init__(self, master, values, max_height=6, **kwargs):
+#         super().__init__(master)
+#         self.values = values
+#         self.filtered_values = list(values)
+#         self.var = tk.StringVar()
+#
+#         # Entry widget
+#         self.entry = ttk.Entry(self, textvariable=self.var, width=kwargs.get("width", 30))
+#         self.entry.pack(fill=tk.BOTH, expand=True)
+#         self.entry.bind("<KeyRelease>", self.on_keyrelease)
+#         self.entry.bind("<Button-1>", self.show_dropdown)
+#
+#         # Keyboard navigation
+#         self.entry.bind("<Down>", self.on_key_down)
+#         self.entry.bind("<Up>", self.on_key_up)
+#         self.entry.bind("<Return>", self.on_return)
+#         self.entry.bind("<Escape>", self.on_escape)
+#
+#         # Dropdown frame
+#         self.dropdown_frame = tk.Toplevel(self)
+#         self.dropdown_frame.withdraw()
+#         self.dropdown_frame.overrideredirect(True)
+#         self.dropdown_frame.attributes("-topmost", True)
+#
+#         # Scrollable listbox
+#         self.listbox = tk.Listbox(self.dropdown_frame, activestyle="dotbox", exportselection=False)
+#         self.scrollbar = tk.Scrollbar(self.dropdown_frame, orient="vertical", command=self.listbox.yview, takefocus=False)
+#         self.listbox.config(yscrollcommand=self.scrollbar.set)
+#         self.listbox.pack(side="left", fill="both", expand=True)
+#         self.scrollbar.pack(side="right", fill="y")
+#
+#         # Bind listbox behavior
+#         self.listbox.bind("<ButtonRelease-1>", self.on_select)
+#         self.listbox.bind("<Motion>", self.on_hover)
+#         self.listbox.bind("<Leave>", lambda e: self.listbox.selection_clear(0, tk.END))
+#
+#         self.max_height = max_height
+#         self.listbox_visible = False
+#         self.current_selection = None
+#
+#         # Focus management
+#         self.entry.bind("<FocusOut>", self.on_focus_out)
+#         self.listbox.bind("<FocusOut>", self.on_focus_out)
+#
+#         # Global click-outside check
+#         self.master.bind_all("<Button-1>", self.check_click_outside)
+#
+#         # Scrollbar interaction flag
+#         self.scrollbar_interaction = False
+#         self.scrollbar.bind("<ButtonPress-1>", self.on_scrollbar_interaction)
+#         self.scrollbar.bind("<ButtonRelease-1>", self.on_scrollbar_interaction)
+#
+#         # Window movement reposition
+#         self.root = self.winfo_toplevel()
+#         self.root.bind("<Configure>", self.on_window_move)
+#         self.root.bind("<Unmap>", self.on_root_unmap)
+#         self.root.bind("<FocusOut>", self.on_root_focus_out)
+#
+#     def on_root_unmap(self, event=None):
+#         # Only hide dropdown if the root window was minimized
+#         if str(self.root.state()) == "iconic":
+#             self.hide_dropdown()
+#
+#     def on_root_focus_out(self, event=None):
+#         # Delay check to allow focus routing to settle
+#         self.after(2, self._check_app_focus)
+#
+#     def _check_app_focus(self):
+#         # Hide dropdown if the app lost focus (i.e., no toplevels have focus)
+#         focused_widget = self.root.focus_displayof()
+#         if focused_widget is None or not str(focused_widget).startswith(str(self.root)):
+#             self.hide_dropdown()
+#
+#     def on_key_down(self, event=None):
+#         if not self.listbox_visible:
+#             self.update_dropdown()
+#             return "break"
+#         current_index = self.listbox.index(tk.ACTIVE)
+#         next_index = current_index + 1 if current_index is not None else 0
+#         if next_index < self.listbox.size():
+#             self.listbox.selection_clear(0, tk.END)
+#             self.listbox.selection_set(next_index)
+#             self.listbox.activate(next_index)
+#             self.listbox.see(next_index)
+#         return "break"
+#
+#     def on_key_up(self, event=None):
+#         if not self.listbox_visible:
+#             return "break"
+#         current_index = self.listbox.index(tk.ACTIVE)
+#         prev_index = current_index - 1 if current_index is not None else self.listbox.size() - 1
+#         if prev_index >= 0:
+#             self.listbox.selection_clear(0, tk.END)
+#             self.listbox.selection_set(prev_index)
+#             self.listbox.activate(prev_index)
+#             self.listbox.see(prev_index)
+#         return "break"
+#
+#     def on_return(self, event=None):
+#         index = self.listbox.index(tk.ACTIVE)
+#         if index is not None and 0 <= index < self.listbox.size():
+#             value = self.listbox.get(index)
+#             self.var.set(value)
+#             self.current_selection = value
+#         self.hide_dropdown()
+#         return "break"
+#
+#     def on_escape(self, event):
+#         self.hide_dropdown()
+#         return "break"
+#
+#     def on_keyrelease(self, event=None):
+#         if event.keysym in ("Up", "Down", "Return", "Escape"):
+#             return
+#         query = self.var.get().lower()
+#         self.filtered_values = [v for v in self.values if query in v.lower()] if query else list(self.values)
+#         self.update_dropdown()
+#
+#     def show_dropdown(self, event=None):
+#         if not self.listbox_visible and self.var.get() != self.current_selection:
+#             self.update_dropdown()
+#         self.position_dropdown()
+#         self.entry.focus_set()
+#
+#     def position_dropdown(self):
+#         x = self.entry.winfo_rootx()
+#         y = self.entry.winfo_rooty() + self.entry.winfo_height()
+#         width = self.entry.winfo_width()
+#         self.dropdown_frame.geometry(f"{width}x{self.listbox.winfo_reqheight()}+{x}+{y}")
+#         self.dropdown_frame.deiconify()
+#         self.listbox_visible = True
+#
+#     def update_dropdown(self):
+#         self.listbox.delete(0, tk.END)
+#         for item in self.filtered_values:
+#             self.listbox.insert(tk.END, item)
+#         height = min(len(self.filtered_values), self.max_height)
+#         self.listbox.config(height=height)
+#         if self.filtered_values:
+#             self.position_dropdown()
+#         else:
+#             self.hide_dropdown()
+#
+#     def hide_dropdown(self):
+#         self.dropdown_frame.withdraw()
+#         self.listbox_visible = False
+#
+#     def on_hover(self, event):
+#         index = self.listbox.nearest(event.y)
+#         self.listbox.selection_clear(0, tk.END)
+#         self.listbox.selection_set(index)
+#         self.listbox.activate(index)
+#
+#     def on_select(self, event=None):
+#         selection = self.listbox.curselection()
+#         if selection:
+#             value = self.listbox.get(selection[0])
+#             self.var.set(value)
+#             self.current_selection = value
+#         self.hide_dropdown()
+#
+#     def on_focus_out(self, event=None):
+#         if self.scrollbar_interaction:
+#             self.after(100, self._check_focus_loss)
+#
+#     def _check_focus_loss(self):
+#         if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
+#             self.hide_dropdown()
+#
+#     def check_click_outside(self, event):
+#         if self.scrollbar_interaction:
+#             return
+#         widget = event.widget
+#         if widget not in (self.entry, self.listbox) and not self._is_child_of(widget, self.dropdown_frame):
+#             self.hide_dropdown()
+#
+#     def _is_child_of(self, widget, parent):
+#         while widget:
+#             if widget == parent:
+#                 return True
+#             widget = widget.master
+#         return False
+#
+#     def on_scrollbar_interaction(self, event):
+#         self.scrollbar_interaction = True
+#         self.after(100, self.reset_scrollbar_interaction)
+#         self.entry.focus_set()
+#
+#     def reset_scrollbar_interaction(self):
+#         self.scrollbar_interaction = False
+#
+#     def on_window_move(self, event):
+#         if self.listbox_visible:
+#             self.after(1, self.position_dropdown)
+#
+#     def get(self):
+#         return self.var.get()
+#
+#     def delete(self, start, end):
+#         self.entry.delete(start, end)
+
+
+# def calculate_mats(relic):
+#
+#     if relic < 0 or relic > 8:
+#         return None, None
+#
+#     return salvage_reqs[relic], signalData_reqs[relic]
+
+
+# def calculate_mats_sum(current_relic, target_relic):
+#
+#     total_salvage_dif = [0] * len(Salvage)
+#     total_signalData_dif = [0] * len(Signal_Data)
+#     for relic_level in range(current_relic, target_relic):
+#         salvage_needed, signalData_needed = calculate_mats(relic_level)
+#         total_salvage_dif = [x + y for x, y in zip(total_salvage_dif, salvage_needed)]
+#         total_signalData_dif = [x + y for x, y in zip(total_signalData_dif, signalData_needed)]
+#
+#     return total_salvage_dif, total_signalData_dif
+
+
+# def print_output(text, replace_top=False):
+#
+#     if replace_top:
+#         # Replace only the top line (like updating a status bar)
+#         text_output.delete("1.0", "2.0")
+#         text_output.insert("1.0", text + "\n")
+#     else:
+#         # Standard append-to-bottom behavior
+#         text_output.insert(tk.END, text + "\n")
+#         text_output.see(tk.END)  # scroll to bottom if needed
+
+
+# def reset_field_styles():
+#
+#     current_frame.config(highlightbackground="gray", highlightcolor="gray")
+#     target_frame.config(highlightbackground="gray", highlightcolor="gray")
+
+
+# def clear_all():
+#
+#     confirm = messagebox.askyesno("Confirm", "All of them?")
+#     if confirm:
+#         current_entry.delete(0, tk.END)
+#         target_entry.delete(0, tk.END)
+#         name_entry.delete(0, tk.END)
+#         text_output.delete(1.0, tk.END)
+#         calculation_history.clear()
+#         highlight_entry(current_entry, True)
+#         highlight_entry(target_entry, True)
+#         reset_field_styles()
+
+
+# def highlight_entry(entry_widget, valid):
+#
+#     if valid:
+#         entry_widget.config(highlightbackground="green", highlightcolor="green", highlightthickness=1)
+#     else:
+#         entry_widget.config(highlightbackground="red", highlightcolor="red", highlightthickness=2)
+
+
+# def validate_inputs():
+#     valid = True
+#
+#     try:
+#         current = int(current_entry.get())
+#     except ValueError:
+#         current = None
+#     try:
+#         target = int(target_entry.get())
+#     except ValueError:
+#         target = None
+#
+#     # Reset to default border
+#     current_frame.config(highlightbackground="SystemButtonFace")
+#     target_frame.config(highlightbackground="SystemButtonFace")
+#
+#     if current is None or not (0 <= current <= 8):
+#         current_frame.config(highlightbackground="red")
+#         valid = False
+#
+#     if target is None or not (1 <= target <= 9):
+#         target_frame.config(highlightbackground="red")
+#         valid = False
+#
+#     if current is not None and target is not None and current >= target:
+#         current_frame.config(highlightbackground="red")
+#         target_frame.config(highlightbackground="red")
+#         valid = False
+#
+#     return valid
+
+
+# def highlight_frame(frame, is_error):
+#     frame.config(highlightbackground="red" if is_error else "white", highlightcolor="red" if is_error else "white")
+
+
+# def add_calculation():
+#
+#     text_output.delete(1.0, tk.END)
+#
+#     if not validate_inputs():
+#         print_output("Something's missing. Either it's Current Relic, Target Relic, or both")
+#         return
+#
+#     try:
+#         current = int(current_entry.get())
+#         target = int(target_entry.get())
+#
+#         if not (0 <= current <= 8):
+#             current_frame.config(highlightbackground="red", highlightcolor="red")
+#             print_output("Current level must be between 0 and 8.")
+#             return
+#         if not (1 <= target <= 9):
+#             target_frame.config(highlightbackground="red", highlightcolor="red")
+#             print_output("Target level must be between 1 and 9.")
+#             return
+#         if current >= target:
+#             current_frame.config(highlightbackground="red", highlightcolor="red")
+#             target_frame.config(highlightbackground="red", highlightcolor="red")
+#             print_output("This is a Relic **UPGRADING** tool. You can't go down.")
+#             return
+#
+#         name = name_entry.get().strip()
+#         calculation_history.append((name, current, target))
+#         name_entry.delete(0, tk.END)
+#
+#         if name:
+#             print_output(f"Added (Relic {current} → {target}) for {name} to the queue,\nClick 'Calculate' to see totals.")
+#         else:
+#             print_output(f"Relic {current} → {target} ready, Click 'Calculate' to see totals.", replace_top=True)
+#
+#     except ValueError:
+#         highlight_entry(current_entry, False)
+#         highlight_entry(target_entry, False)
+#         print_output("Relic levels are numerical, not alphabetical, or whatever that was.", replace_top=True)
+
+
+# def summarize_all():
+#     text_output.delete(1.0, tk.END)
+#
+#     if not validate_inputs():
+#         print_output("Something's missing. Either it's Current Relic, Target Relic, or both.")
+#         return
+#
+#     if not calculation_history:
+#         print_output("Before calculation, you'll need to add to the queue at least one line, genius.")
+#         return
+#
+#     total_salvage = [0] * len(Salvage)
+#     total_signal = [0] * len(Signal_Data)
+#     output_lines = ["                          === INDIVIDUAL SUMMARY ===\n"]
+#
+#     for i, (name, current, target) in enumerate(calculation_history, 1):
+#         label = f"{name}" if name else f"Upgrade #{i}"
+#         output_lines.append(f"=== {label} ===")
+#         salvage_diff, signal_diff = calculate_mats_sum(current, target)
+#         output_lines.append(f" - Relic {current} → Relic {target} - ")
+#
+#         # Only show "Salvage" section if there's data
+#         if any(amount > 0 for amount in salvage_diff):
+#             output_lines.append("Salvage")
+#             for s_name, amount in zip(Salvage, salvage_diff):
+#                 if amount > 0:
+#                     output_lines.append(f"   - {s_name}: {amount}")
+#
+#         # Only show "Signal Data" section if there's data
+#         if any(amount > 0 for amount in signal_diff):
+#             output_lines.append("Signal Data")
+#             for sig_name, amount in zip(Signal_Data, signal_diff):
+#                 if amount > 0:
+#                     output_lines.append(f"   - {sig_name}: {amount}")
+#
+#         output_lines.append("")
+#
+#         total_salvage = [x + y for x, y in zip(total_salvage, salvage_diff)]
+#         total_signal = [x + y for x, y in zip(total_signal, signal_diff)]
+#
+#     # Only append GRAND TOTAL if there is more than one line in the queue
+#     if len(calculation_history) > 1:
+#         output_lines.append("                               === GRAND TOTAL ===\n")
+#
+#         # Only show total salvage if there is any salvage data
+#         if any(amount > 0 for amount in total_salvage):
+#             output_lines.append("Salvage")
+#             for s_name, amount in zip(Salvage, total_salvage):
+#                 if amount > 0:
+#                     output_lines.append(f"   - {s_name}s: {amount} pieces")
+#
+#         # Only show total signal data if there is any signal data
+#         if any(amount > 0 for amount in total_signal):
+#             output_lines.append("Signal Data")
+#             for sig_name, amount in zip(Signal_Data, total_signal):
+#                 if amount > 0:
+#                     output_lines.append(f"   - {sig_name}: {amount}")
+#         output_lines.append("")
+#
+#     print_output("\n".join(output_lines))
+#     text_output.yview_moveto(0.0)
 
 
 if __name__ == "__main__":
@@ -418,8 +417,15 @@ if __name__ == "__main__":
 
     root = tk.Tk()
     root.title("Relic-izer 3000")
+    root.resizable(False, False)
+    root.bind("<FocusOut>",
+              lambda e: reset_focus_on_global_click(e, current_entry, target_entry, current_frame, target_frame))
 
     calculation_history = []
+
+    # Initialize the text_output widget before it's used anywhere
+    text_output = tk.Text(root, width=80, height=20, wrap="word")
+    text_output.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
 
     current_frame = tk.Frame(root, highlightthickness=2)
     target_frame = tk.Frame(root, highlightthickness=2)
@@ -431,7 +437,11 @@ if __name__ == "__main__":
     current_entry.pack()
     current_entry.delete(0, tk.END)  # Make blank on startup
     current_entry.bind("<KeyPress>", block_non_numeric)
-    current_entry.bind("<FocusOut>", lambda e: sanitize_spinbox_input(current_entry))
+    current_entry.bind("<FocusIn>", lambda e: highlight_frame(current_frame, "focus"))
+    current_entry.bind("<FocusOut>", lambda e: on_entry_focus_out(
+        current_entry=current_entry, target_entry=target_entry,
+        current_frame=current_frame, target_frame=target_frame
+    ))
     current_frame.grid(row=0, column=1, padx=5, pady=5)
 
     # Target spinbox
@@ -441,20 +451,65 @@ if __name__ == "__main__":
     target_entry.delete(0, tk.END)  # Make blank on startup
     target_entry.bind("<KeyPress>", block_non_numeric)
     target_entry.bind("<FocusOut>", lambda e: sanitize_spinbox_input(target_entry))
+    target_entry.bind("<FocusIn>", lambda e: highlight_frame(target_frame, "focus"))
+    target_entry.bind("<FocusOut>", lambda e: on_entry_focus_out(
+        current_entry=current_entry, target_entry=target_entry,
+        current_frame=current_frame, target_frame=target_frame
+    ))
     target_frame.grid(row=1, column=1, padx=5, pady=5)
 
     # Character name box
     tk.Label(root, text="Character Name (optional):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
     name_entry = SearchableCombobox(name_frame, values=character_names, width=30)
     name_entry.pack()
+    name_entry.bind("<FocusIn>", lambda e: highlight_frame(name_frame, "focus"))
+    name_entry.bind("<FocusOut>", lambda e: highlight_frame(name_frame, "default"))
     name_frame.grid(row=2, column=1, padx=5, pady=5)
 
-    text_output = tk.Text(root, width=80, height=20, wrap="word")
-    text_output.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
+    # Add to Queue Button
+    tk.Button(root, text="Add to Queue", command=lambda: add_calculation(
+        text_output=text_output,
+        current_entry=current_entry,
+        target_entry=target_entry,
+        current_frame=current_frame,
+        target_frame=target_frame,
+        calculation_history=calculation_history,
+        name_entry=name_entry
+    )).grid(row=0, column=2, padx=5, pady=5)
 
-    # Buttons
-    tk.Button(root, text="Add to Queue", command=add_calculation).grid(row=0, column=2, padx=5, pady=5)
-    tk.Button(root, text="Calculate", command=summarize_all).grid(row=1, column=2, padx=5, pady=5)
-    tk.Button(root, text="Wipe them out", command=clear_all).grid(row=2, column=2, padx=5, pady=5)
+    # Calculate Button
+    tk.Button(root, text="Calculate", command=lambda: summarize_all(
+        calculation_history=calculation_history,
+        text_output=text_output,
+        current_entry=current_entry,
+        target_entry=target_entry,
+        current_frame=current_frame,
+        target_frame=target_frame
+    )).grid(row=1, column=2, padx=5, pady=5)
+
+    # Wipe them out
+    tk.Button(root, text="Wipe them out", command=lambda: clear_all(
+        current_entry=current_entry,
+        target_entry=target_entry,
+        name_entry=name_entry,
+        text_output=text_output,
+        calculation_history=calculation_history,
+        current_frame=current_frame,
+        target_frame=target_frame
+    )).grid(row=2, column=2, padx=5, pady=5)
+
+    root.bind_all(
+        "<Button-1>",
+        lambda event: on_global_click(
+            event,
+            current_entry=current_entry,
+            target_entry=target_entry,
+            current_frame=current_frame,
+            target_frame=target_frame,
+            name_entry=name_entry,
+            name_frame=name_frame
+        ),
+        add='+'
+    )
 
     root.mainloop()
