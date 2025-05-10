@@ -3,7 +3,6 @@ from logic import *
 
 
 if __name__ == "__main__":
-
     try:
         def block_non_numeric(event):
             if not (event.char.isdigit() or event.keysym in ("BackSpace", "Left", "Right", "Tab", "Delete")):
