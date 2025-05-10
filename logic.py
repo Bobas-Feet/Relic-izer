@@ -276,6 +276,7 @@ def summarize_all(calculation_history=None, text_output=None,
     highlight_frame(target_frame, "valid")
 
     if not calculation_history:
+
         print_output("Before calculation, you'll need to add to the queue at least one line, genius.", text_output=text_output)
         return
 

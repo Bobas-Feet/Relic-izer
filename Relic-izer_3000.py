@@ -71,6 +71,7 @@ if __name__ == "__main__":
         target_entry.bind("<FocusOut>", lambda e: sanitize_spinbox_input(target_entry))
         target_entry.bind("<FocusIn>", lambda e: on_entry_focus_in(target_frame))
         target_entry.bind("<FocusOut>", lambda e: on_entry_focus_out(
+
             current_entry=current_entry,
             target_entry=target_entry,
             current_frame=current_frame,
