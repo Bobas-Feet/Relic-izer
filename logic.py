@@ -255,7 +255,6 @@ def on_global_click(event, current_entry=None, target_entry=None, current_frame=
                 current_frame, target_frame, name_frame]):
         return
 
-    # frames = [current_frame, target_frame, name_frame]
     entries = [current_entry, target_entry, name_entry]
 
     if widget not in entries:

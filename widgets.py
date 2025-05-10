@@ -203,3 +203,5 @@ class SearchableCombobox(tk.Frame):
 
     def delete(self, start, end):
         self.entry.delete(start, end)
+
+
