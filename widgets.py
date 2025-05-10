@@ -195,6 +195,7 @@ class SearchableCombobox(tk.Frame):
         self.scrollbar_interaction = False
 
     def on_window_move(self, event):
+
         if self.listbox_visible:
             self.after(1, self.position_dropdown)
 
