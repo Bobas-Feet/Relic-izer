@@ -259,6 +259,12 @@ def summarize_all(calculation_history=None, text_output=None,
                   current_frame=None, target_frame=None):
     text_output.delete(1.0, tk.END)
 
+    if not calculation_history:
+        highlight_frame(current_frame, "invalid")
+        highlight_frame(target_frame, "invalid")
+        print_output("Before calculation, you'll need to add to the queue at least one line, genius.", text_output=text_output)
+        return
+
     is_valid, current, target = validate_inputs(
         current_entry=current_entry,
         target_entry=target_entry,
@@ -274,11 +280,6 @@ def summarize_all(calculation_history=None, text_output=None,
 
     highlight_frame(current_frame, "valid")
     highlight_frame(target_frame, "valid")
-
-    if not calculation_history:
-
-        print_output("Before calculation, you'll need to add to the queue at least one line, genius.", text_output=text_output)
-        return
 
     total_salvage = [0] * len(Salvage)
     total_signal = [0] * len(Signal_Data)
