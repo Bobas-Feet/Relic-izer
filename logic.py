@@ -40,7 +40,7 @@ def print_output(text, replace_top=False, text_output=None):
 
 def highlight_frame(frame, status):
     colors = {
-        "default": "gray",
+        "default": "SystemButtonFace",
         "focus": "blue",
         "valid": "green",
         "invalid": "red"
@@ -49,6 +49,7 @@ def highlight_frame(frame, status):
 
     if status != "focus":
         frame.highlight_status = status
+
 
 def validate_inputs(current_entry=None, target_entry=None,
                     current_frame=None, target_frame=None):
@@ -83,6 +84,7 @@ def validate_inputs(current_entry=None, target_entry=None,
 
 
 def reset_field_styles(*frames):
+
     for frame in frames:
         if frame:
             highlight_frame(frame, "default")
