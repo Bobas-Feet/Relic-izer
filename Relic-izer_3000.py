@@ -39,10 +39,6 @@ if __name__ == "__main__":
         text_output = tk.Text(root, width=80, height=20, wrap="word")
         text_output.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
 
-        # current_frame = tk.Frame(root, highlightthickness=2)
-        # target_frame = tk.Frame(root, highlightthickness=2)
-        # name_frame = tk.Frame(root, highlightthickness=2)
-
         # Current spinbox
         tk.Label(root, text="Current Relic Level (0–8):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         current_frame = tk.Frame(root, highlightthickness=1)
