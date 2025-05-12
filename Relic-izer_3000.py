@@ -19,19 +19,6 @@ if __name__ == "__main__":
         root = tk.Tk()
         root.title("Relic-izer 3000")
         root.resizable(False, False)
-        root.bind_all(
-            "<Button-1>",
-            lambda event: on_global_click(
-                event,
-                current_entry=current_entry,
-                target_entry=target_entry,
-                name_entry=name_entry,
-                current_frame=current_frame,
-                target_frame=target_frame,
-                name_frame=name_frame
-            ),
-            add='+'
-        )
 
         calculation_history = []
 
@@ -41,7 +28,8 @@ if __name__ == "__main__":
 
         # Current spinbox
         tk.Label(root, text="Current Relic Level (0–8):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        current_frame = tk.Frame(root, highlightthickness=1)
+        current_frame = tk.Frame(root, highlightthickness=1, highlightbackground="gray", highlightcolor="gray", bd=1,
+                              relief="solid")
         current_frame.highlight_status = "default"
         current_entry = tk.Spinbox(current_frame, from_=0, to=8, width=5)
         current_entry.pack()
@@ -58,7 +46,8 @@ if __name__ == "__main__":
 
         # Target spinbox
         tk.Label(root, text="Target Relic Level (1–9):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        target_frame = tk.Frame(root, highlightthickness=1)
+        target_frame = tk.Frame(root, highlightthickness=1, highlightbackground="gray", highlightcolor="gray", bd=1,
+                              relief="solid")
         target_frame.highlight_status = "default"
         target_entry = tk.Spinbox(target_frame, from_=1, to=9, width=5)
         target_entry.pack()
@@ -77,13 +66,17 @@ if __name__ == "__main__":
 
         # Character name box
         tk.Label(root, text="Character Name (optional):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        name_frame = tk.Frame(root, highlightthickness=1)
+        name_frame = tk.Frame(root, highlightthickness=1, highlightbackground="gray", highlightcolor="gray", bd=1,
+                              relief="solid")
         name_frame.highlight_status = "default"
         name_entry = SearchableCombobox(name_frame, values=character_names, width=30)
         name_entry.pack()
         name_entry.bind("<FocusIn>", lambda e: highlight_frame(name_frame, "focus"))
         name_entry.bind("<FocusOut>", lambda e: highlight_frame(name_frame, "default"))
         name_frame.grid(row=2, column=1, padx=5, pady=5)
+
+        # focus_trap = tk.Frame(root, width=0, height=0)
+        # focus_trap.place(x=-100, y=-100)
 
         # Add to Queue Button
         tk.Button(root, text="Add to Queue", command=lambda: add_calculation(
@@ -118,21 +111,22 @@ if __name__ == "__main__":
         )).grid(row=2, column=2, padx=5, pady=5)
 
         root.bind_all(
-            "<Button-1>",
-            lambda event: on_global_click(
-                event,
-                current_entry=current_entry,
-                target_entry=target_entry,
-                current_frame=current_frame,
-                target_frame=target_frame,
-                name_entry=name_entry,
-                name_frame=name_frame
-            ),
-            add='+'
-        )
+             "<Button-1>",
+             lambda event: on_global_click(
+                 event,
+                 current_entry=current_entry,
+                 target_entry=target_entry,
+                 name_entry=name_entry,
+                 current_frame=current_frame,
+                 target_frame=target_frame,
+                 name_frame=name_frame
+         ),
+         add='+'
+         )
 
         root.mainloop()
 
     except KeyboardInterrupt:
         print('\nMay the Force be with you')
+
 

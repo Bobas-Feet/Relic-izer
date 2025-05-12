@@ -168,16 +168,43 @@ class SearchableCombobox(tk.Frame):
         if self.scrollbar_interaction:
             self.after(100, self._check_focus_loss)
 
+    # def _check_focus_loss(self):
+    #     if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
+    #         self.hide_dropdown()
+
     def _check_focus_loss(self):
-        if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
+        focused_widget = self.root.focus_get()
+        if focused_widget not in (self.entry, self.listbox, self.scrollbar):
             self.hide_dropdown()
+            self.entry.selection_clear()
+            self.entry.icursor(tk.END)
+            # self.entry.master.focus_set()  # Shift focus to the frame to drop cursor
+
+    # def check_click_outside(self, event):
+    #     if self.scrollbar_interaction:
+    #         return
+    #     widget = event.widget
+    #     if widget not in (self.entry, self.listbox) and not self._is_child_of(widget, self.dropdown_frame):
+    #         self.hide_dropdown()
+
+    # def check_click_outside(self, event):
+    #     widget = event.widget
+    #     if widget not in (self.entry, self.listbox, self.scrollbar) and not self._is_child_of(widget,
+    #                                                                                           self.dropdown_frame):
+    #         self.hide_dropdown()
+    #         self.entry.selection_clear()
+    #         self.entry.icursor(tk.END)
+    #         self.entry.master.focus_set()  # Drop the cursor
 
     def check_click_outside(self, event):
         if self.scrollbar_interaction:
             return
         widget = event.widget
-        if widget not in (self.entry, self.listbox) and not self._is_child_of(widget, self.dropdown_frame):
+        if widget not in (self.entry, self.listbox, self.scrollbar) and not self._is_child_of(widget,
+                                                                                              self.dropdown_frame):
             self.hide_dropdown()
+            self.entry.selection_clear()
+            self.entry.icursor(tk.END)
 
     def _is_child_of(self, widget, parent):
         while widget:
@@ -204,5 +231,3 @@ class SearchableCombobox(tk.Frame):
 
     def delete(self, start, end):
         self.entry.delete(start, end)
-
-

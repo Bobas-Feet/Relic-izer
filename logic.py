@@ -246,15 +246,58 @@ def on_entry_focus_out(current_entry, target_entry, current_frame, target_frame)
         highlight_frame(target_frame, target_frame.highlight_status)
 
 
+def is_widget_in_dropdown(widget, dropdown):
+    if not dropdown:
+        return False
+    if widget == dropdown:
+        return True
+    parent = widget
+    while parent:
+        if parent == dropdown:
+            return True
+        parent = parent.master
+    return False
+
+
+# def on_global_click(event, current_entry, target_entry, name_entry,
+#                     current_frame, target_frame, name_frame):
+#     widget = event.widget
+#
+#     if widget not in (current_entry, target_entry, name_entry):
+#         highlight_frame(current_frame, current_frame.highlight_status)
+#         highlight_frame(target_frame, target_frame.highlight_status)
+#         highlight_frame(name_frame, name_frame.highlight_status)
+
 
 def on_global_click(event, current_entry, target_entry, name_entry,
                     current_frame, target_frame, name_frame):
     widget = event.widget
 
-    if widget not in (current_entry, target_entry, name_entry):
-        highlight_frame(current_frame, current_frame.highlight_status)
-        highlight_frame(target_frame, target_frame.highlight_status)
-        highlight_frame(name_frame, name_frame.highlight_status)
+    # Check if click is inside dropdown
+    def is_dropdown_widget(w):
+        while w:
+            if isinstance(w, tk.Toplevel) and "searchable_combobox_dropdown" in str(w):
+                return True
+            w = w.master
+        return False
+
+    if widget in (current_entry, target_entry, name_entry) or is_dropdown_widget(widget):
+        return
+
+    # Trigger focus-out logic and remove cursor from active entry
+    for entry, frame in[
+             (current_entry, current_frame),
+             (target_entry, target_frame),
+             (name_entry, name_frame)
+    ]:
+        if entry == entry.focus_get():
+            entry.selection_clear()
+            entry.winfo_toplevel().focus_set()
+            highlight_frame(frame, frame.highlight_status)
+
+    # root = current_entry.winfo_toplevel()
+    # root.focus_set()
+
 
 
 def reset_focus_on_global_click(event, current_entry, target_entry, name_entry, current_frame, target_frame, name_frame):
