@@ -168,9 +168,6 @@ class SearchableCombobox(tk.Frame):
         if self.scrollbar_interaction:
             self.after(100, self._check_focus_loss)
 
-    # def _check_focus_loss(self):
-    #     if not (self.entry.focus_get() == self.entry or self.listbox.focus_get() == self.listbox):
-    #         self.hide_dropdown()
 
     def _check_focus_loss(self):
         focused_widget = self.root.focus_get()
@@ -178,23 +175,8 @@ class SearchableCombobox(tk.Frame):
             self.hide_dropdown()
             self.entry.selection_clear()
             self.entry.icursor(tk.END)
-            # self.entry.master.focus_set()  # Shift focus to the frame to drop cursor
+            self.entry.master.focus_set()  # Shift focus to the frame to drop cursor
 
-    # def check_click_outside(self, event):
-    #     if self.scrollbar_interaction:
-    #         return
-    #     widget = event.widget
-    #     if widget not in (self.entry, self.listbox) and not self._is_child_of(widget, self.dropdown_frame):
-    #         self.hide_dropdown()
-
-    # def check_click_outside(self, event):
-    #     widget = event.widget
-    #     if widget not in (self.entry, self.listbox, self.scrollbar) and not self._is_child_of(widget,
-    #                                                                                           self.dropdown_frame):
-    #         self.hide_dropdown()
-    #         self.entry.selection_clear()
-    #         self.entry.icursor(tk.END)
-    #         self.entry.master.focus_set()  # Drop the cursor
 
     def check_click_outside(self, event):
         if self.scrollbar_interaction:
@@ -231,3 +213,166 @@ class SearchableCombobox(tk.Frame):
 
     def delete(self, start, end):
         self.entry.delete(start, end)
+
+
+# class SearchableCombobox(tk.Frame):
+#     def __init__(self, master, values=None, placeholder="Search...", *args, **kwargs):
+#         super().__init__(master, *args, **kwargs)
+#         self.values = values if values else []
+#         self.placeholder = placeholder
+#         self.placeholder_active = False
+#         self.dropdown_visible = False
+#         self.selected_index = None
+#
+#         self.var = tk.StringVar()
+#         self.entry = tk.Entry(self, textvariable=self.var, fg="grey")
+#         self.entry.pack(fill=tk.BOTH, expand=True)
+#
+#         self._set_placeholder()
+#
+#         self.entry.bind("<FocusIn>", self._on_focus_in)
+#         self.entry.bind("<FocusOut>", self._on_focus_out)
+#         self.entry.bind("<KeyRelease>", self._on_key_release)
+#         self.entry.bind("<Down>", self._on_down_key)
+#
+#         self.listbox = None
+#         self.scrollbar = None
+#         self.dropdown_window = None
+#
+#     def _set_placeholder(self):
+#         self.var.set(self.placeholder)
+#         self.entry.config(fg="grey")
+#         self.placeholder_active = True
+#
+#     def _clear_placeholder(self):
+#         self.var.set("")
+#         self.entry.config(fg="black")
+#         self.placeholder_active = False
+#
+#     def _on_focus_in(self, event):
+#         if self.placeholder_active:
+#             self._clear_placeholder()
+#
+#     def _on_focus_out(self, event):
+#         if not self.var.get():
+#             self._set_placeholder()
+#         # Close dropdown on focus out (if dropdown wasn't clicked)
+#         self.after(100, self._maybe_close_dropdown)
+#
+#     def _on_key_release(self, event):
+#         if self.placeholder_active:
+#             return
+#         if event.keysym in ("Down", "Up", "Return", "Escape"):
+#             return
+#         self._update_dropdown()
+#
+#     def _on_down_key(self, event):
+#         if self.dropdown_visible and self.listbox:
+#             self.listbox.focus_set()
+#             self.listbox.selection_clear(0, tk.END)
+#             self.listbox.selection_set(0)
+#             self.listbox.activate(0)
+#             self.selected_index = 0
+#         return "break"
+#
+#     def _maybe_close_dropdown(self):
+#         if self.dropdown_window and not self.entry.focus_get() and not self.listbox.focus_get():
+#             self._hide_dropdown()
+#
+#     def _update_dropdown(self):
+#         typed = self.var.get()
+#         if not typed:
+#             filtered = self.values
+#         else:
+#             filtered = [item for item in self.values if typed.lower() in item.lower()]
+#
+#         if not filtered:
+#             self._hide_dropdown()
+#             return
+#
+#         if not self.dropdown_window:
+#             self._create_dropdown()
+#
+#         self._populate_listbox(filtered)
+#         self._show_dropdown()
+#
+#     def _create_dropdown(self):
+#         self.dropdown_window = tk.Toplevel(self)
+#         self.dropdown_window.wm_overrideredirect(True)
+#         self.dropdown_window.attributes("-topmost", True)
+#
+#         self.listbox = tk.Listbox(self.dropdown_window, selectmode=tk.SINGLE, activestyle="none")
+#         self.scrollbar = tk.Scrollbar(self.dropdown_window, orient=tk.VERTICAL, command=self.listbox.yview)
+#         self.listbox.config(yscrollcommand=self.scrollbar.set)
+#
+#         self.listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+#         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+#
+#         self.listbox.bind("<ButtonRelease-1>", self._on_listbox_select)
+#         self.listbox.bind("<Return>", self._on_listbox_select)
+#         self.listbox.bind("<Escape>", lambda e: self._hide_dropdown())
+#         self.listbox.bind("<Up>", self._on_listbox_up)
+#         self.listbox.bind("<Down>", self._on_listbox_down)
+#
+#     def _populate_listbox(self, items):
+#         self.listbox.delete(0, tk.END)
+#         for item in items:
+#             self.listbox.insert(tk.END, item)
+#
+#     def _show_dropdown(self):
+#         if not self.dropdown_window or not self.listbox:
+#             return
+#
+#         x = self.entry.winfo_rootx()
+#         y = self.entry.winfo_rooty() + self.entry.winfo_height()
+#         w = self.entry.winfo_width()
+#         max_height = min(len(self.listbox.get(0, tk.END)), 6)
+#         h = self.entry.winfo_height() * max_height
+#
+#         self.dropdown_window.geometry(f"{w}x{h}+{x}+{y}")
+#         self.dropdown_window.deiconify()
+#         self.dropdown_visible = True
+#
+#     def _hide_dropdown(self):
+#         if self.dropdown_window:
+#             self.dropdown_window.withdraw()
+#         self.dropdown_visible = False
+#         self.selected_index = None
+#
+#     def _on_listbox_select(self, event):
+#         selection = self.listbox.curselection()
+#         if selection:
+#             index = selection[0]
+#             value = self.listbox.get(index)
+#             self.var.set(value)
+#             self.entry.config(fg="black")
+#             self.placeholder_active = False
+#         self._hide_dropdown()
+#         self.entry.focus_set()
+#
+#     def _on_listbox_up(self, event):
+#         if self.selected_index is not None and self.selected_index > 0:
+#             self.selected_index -= 1
+#             self.listbox.selection_clear(0, tk.END)
+#             self.listbox.selection_set(self.selected_index)
+#             self.listbox.activate(self.selected_index)
+#         return "break"
+#
+#     def _on_listbox_down(self, event):
+#         size = self.listbox.size()
+#         if self.selected_index is not None and self.selected_index < size - 1:
+#             self.selected_index += 1
+#             self.listbox.selection_clear(0, tk.END)
+#             self.listbox.selection_set(self.selected_index)
+#             self.listbox.activate(self.selected_index)
+#         return "break"
+#
+#     def get(self):
+#         if self.placeholder_active:
+#             return ""
+#         return self.var.get()
+#
+#     def set(self, value):
+#         self.var.set(value)
+#         self.entry.config(fg="black")
+#         self.placeholder_active = False

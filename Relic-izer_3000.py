@@ -16,6 +16,16 @@ if __name__ == "__main__":
             if not value.isdigit():
                 spinbox.delete(0, tk.END)
 
+
+        def target_focus_out_handler(event):
+            sanitize_spinbox_input(target_entry)
+            on_entry_focus_out(
+                current_entry=current_entry,
+                target_entry=target_entry,
+                current_frame=current_frame,
+                target_frame=target_frame
+            )
+
         root = tk.Tk()
         root.title("Relic-izer 3000")
         root.resizable(False, False)
@@ -53,15 +63,9 @@ if __name__ == "__main__":
         target_entry.pack()
         target_entry.delete(0, tk.END)  # Make blank on startup
         target_entry.bind("<KeyPress>", block_non_numeric)
-        target_entry.bind("<FocusOut>", lambda e: sanitize_spinbox_input(target_entry))
         target_entry.bind("<FocusIn>", lambda e: on_entry_focus_in(target_frame))
-        target_entry.bind("<FocusOut>", lambda e: on_entry_focus_out(
+        target_entry.bind("<FocusOut>", target_focus_out_handler)
 
-            current_entry=current_entry,
-            target_entry=target_entry,
-            current_frame=current_frame,
-            target_frame=target_frame
-        ))
         target_frame.grid(row=1, column=1, padx=5, pady=5)
 
         # Character name box
@@ -75,8 +79,6 @@ if __name__ == "__main__":
         name_entry.bind("<FocusOut>", lambda e: highlight_frame(name_frame, "default"))
         name_frame.grid(row=2, column=1, padx=5, pady=5)
 
-        # focus_trap = tk.Frame(root, width=0, height=0)
-        # focus_trap.place(x=-100, y=-100)
 
         # Add to Queue Button
         tk.Button(root, text="Add to Queue", command=lambda: add_calculation(
@@ -124,6 +126,7 @@ if __name__ == "__main__":
          add='+'
          )
 
+        print_output(DEFAULT_GUIDANCE, text_output=text_output)
         root.mainloop()
 
     except KeyboardInterrupt:
