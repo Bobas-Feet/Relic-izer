@@ -65,7 +65,7 @@ def validate_inputs(current_entry=None, target_entry=None,
                     current_frame=None, target_frame=None):
 
     valid = True
-    max_relic = 9 # set max relic for future potential change
+    max_relic = 9  # set max relic for future potential change
 
     try:
         current = int(current_entry.get())
@@ -76,34 +76,33 @@ def validate_inputs(current_entry=None, target_entry=None,
     except (ValueError, AttributeError):
         target = None
 
-    # Reset all highlights first
+        # Reset highlights
     if current_frame:
         highlight_frame(current_frame, "default")
     if target_frame:
         highlight_frame(target_frame, "default")
 
-    # Validate Current
-    if current is None or not (0 <= current <= 8):
+    current_valid = current is not None and 0 <= current <= 8
+    target_valid = target is not None and 1 <= target <= max_relic
+
+    if not current_valid:
         valid = False
         if current_frame:
             highlight_frame(current_frame, "invalid")
-
-    # Validate Target
-    if target is None or not (1 <= target <= max_relic):
+    if not target_valid:
         valid = False
         if target_frame:
             highlight_frame(target_frame, "invalid")
 
-    # Validate logical relation
-    if current is not None and target is not None and current >= target:
-        valid = False
-        if current_frame:
-            highlight_frame(current_frame, "invalid")
-        if target_frame:
-            highlight_frame(target_frame, "invalid")
+    if current_valid and target_valid:
+        if current >= target:
+            valid = False
+            if current_frame:
+                highlight_frame(current_frame, "invalid")
+            if target_frame:
+                highlight_frame(target_frame, "invalid")
 
     return valid, current, target
-
 
 
 def reset_field_styles(*frames):
@@ -151,6 +150,9 @@ def add_calculation(text_output=None, current_entry=None, target_entry=None, cur
         if not is_valid:
             print_output("Invalid inputs. Check again.", text_output=text_output)
             return
+
+        highlight_frame(current_frame, "default")
+        highlight_frame(target_frame, "default")
 
         name = name_entry.get().strip()
         calculation_history.append((name, current, target))
@@ -254,9 +256,8 @@ def summarize_all(calculation_history=None, text_output=None,
         highlight_frame(current_frame, "invalid")
         highlight_frame(target_frame, "invalid")
         print_output(
-            "Before calculation, adjust your desired Current and Target relics, click Add to Queue, then Calculate.",
-            text_output=text_output
-        )
+            "Before calculation, adjust your desired Current and Target relics, "
+            "click Add to Queue, then Calculate.", text_output=text_output)
         return
 
     is_valid, current, target = validate_inputs(
@@ -267,11 +268,13 @@ def summarize_all(calculation_history=None, text_output=None,
     )
 
     if not is_valid:
-        print_output(
-            "Something's missing. Either it's Current Relic, Target Relic, or both.",
-            text_output=text_output
-        )
+        highlight_frame(current_frame, "invalid")
+        highlight_frame(target_frame, "invalid")
+        print_output("Something's missing. Either it's Current Relic, Target Relic, or both.", text_output=text_output)
         return
+
+    highlight_frame(current_frame, "valid")
+    highlight_frame(target_frame, "valid")
 
     output_lines = ["                          === INDIVIDUAL SUMMARY ===\n"]
 

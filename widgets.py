@@ -3,7 +3,7 @@ from logic import *
 
 
 class SearchableCombobox(tk.Frame):
-    def __init__(self, master, values, max_height=6, **kwargs):
+    def __init__(self, master, values, max_height=8, **kwargs):
         super().__init__(master)
         self.values = values
         self.filtered_values = list(values)
