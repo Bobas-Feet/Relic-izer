@@ -6,6 +6,7 @@ from lists_database import *
 frame_highlight_states = {}
 DEFAULT_GUIDANCE = ("               Before calculation, adjust your desired Current and\n"
                     "                Target relics, click Add to Queue, then Calculate.")
+HIGHLIGHT_THICKNESS = 2
 
 
 def calculate_mats(relic):
@@ -49,13 +50,19 @@ def print_output(text, replace_top=False, text_output=None, append_default=False
 
 
 def highlight_frame(frame, status):
+
+
     colors = {
         "default": "SystemButtonFace",
         "focus": "blue",
         "valid": "green",
         "invalid": "red"
     }
-    frame.config(highlightbackground=colors[status], highlightcolor=colors[status])
+    frame.config(
+        highlightbackground=colors[status],
+        highlightcolor=colors[status],
+        highlightthickness=HIGHLIGHT_THICKNESS  # consistent thickness
+    )
 
     if status != "focus":
         frame.highlight_status = status
