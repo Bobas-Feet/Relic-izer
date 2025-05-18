@@ -28,6 +28,7 @@ if __name__ == "__main__":
 
         root = tk.Tk()
         root.title("Relic-izer 3000")
+        root.iconbitmap("holocron_icon.ico")
         root.resizable(False, False)
 
         calculation_history = []
