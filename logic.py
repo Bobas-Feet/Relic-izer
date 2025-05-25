@@ -120,7 +120,7 @@ def reset_field_styles(*frames):
 
 
 def clear_all(current_entry=None, target_entry=None, name_entry=None, text_output=None,
-              calculation_history=None, current_frame=None, target_frame=None):
+              calculation_history=None, current_frame=None, target_frame=None, status_effect_combobox=None):
 
     confirm = messagebox.askyesno("Confirm", "All of them?")
     if confirm:
@@ -130,6 +130,9 @@ def clear_all(current_entry=None, target_entry=None, name_entry=None, text_outpu
         text_output.delete(1.0, tk.END)
         calculation_history.clear()
         reset_field_styles(current_frame, target_frame)
+
+        if status_effect_combobox is not None:
+            status_effect_combobox.delete(0, tk.END)
 
         print_output(DEFAULT_GUIDANCE, text_output=text_output)
 
@@ -155,7 +158,7 @@ def add_calculation(text_output=None, current_entry=None, target_entry=None, cur
         )
 
         if not is_valid:
-            print_output("Invalid inputs. Check again.", text_output=text_output)
+            print_output("What the hell is this? Sith have red frames. Make yours green to continue.", text_output=text_output)
             return
 
         highlight_frame(current_frame, "default")

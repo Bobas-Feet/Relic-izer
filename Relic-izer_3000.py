@@ -26,9 +26,21 @@ if __name__ == "__main__":
                 target_frame=target_frame
             )
 
+
+        def on_status_effect_selected(event=None):
+            selected_effect = status_effect_combobox.get()
+            characters = status_effects.get(selected_effect, [])
+            output_text = f"Characters with '{selected_effect}':\n\n"
+            output_text += "\n".join(f"• {name}" for name in characters) if characters else "None found."
+
+            text_output.config(state="normal")
+            text_output.delete("1.0", "end")
+            text_output.insert("1.0", output_text)
+            text_output.config(state="disabled")
+
         root = tk.Tk()
         root.title("Relic-izer 3000")
-        root.iconbitmap("holocron_icon.ico")
+        root.iconbitmap("holocron2.ico")
         root.resizable(False, False)
 
         calculation_history = []
@@ -80,6 +92,16 @@ if __name__ == "__main__":
         name_entry.bind("<FocusOut>", lambda e: highlight_frame(name_frame, "default"))
         name_frame.grid(row=2, column=1, padx=5, pady=5)
 
+        # Status Effect dropdown
+        tk.Label(root, text="Status Effect Lookup:").grid(row=3, column=0, padx=5, pady=(5, 0), sticky="w")
+        status_effect_combobox = SearchableCombobox(root, values=sorted(status_effects.keys()), width=30)
+        status_effect_combobox.grid(row=3, column=1, padx=5, pady=(5, 0), sticky="w")
+        status_effect_combobox.bind("<<ComboboxSelected>>", on_status_effect_selected)
+        status_effect_combobox.bind("<Return>", on_status_effect_selected)
+
+        # Text output display
+        text_output = tk.Text(root, width=80, height=20, wrap="word", state="normal")
+
 
         # Add to Queue Button
         tk.Button(root, text="Add to Queue", command=lambda: add_calculation(
@@ -110,7 +132,8 @@ if __name__ == "__main__":
             text_output=text_output,
             calculation_history=calculation_history,
             current_frame=current_frame,
-            target_frame=target_frame
+            target_frame=target_frame,
+            status_effect_combobox = status_effect_combobox
         )).grid(row=2, column=2, padx=5, pady=5)
 
         root.bind_all(
